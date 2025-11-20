@@ -1,0 +1,93 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+
+export function ColorMixer() {
+    const [r, setR] = useState(0);
+    const [g, setG] = useState(0);
+    const [b, setB] = useState(0);
+
+    const colorString = `rgb(${r}, ${g}, ${b})`;
+
+    return (
+        <div className="grid gap-8 md:grid-cols-2 items-center">
+            <div className="space-y-6 p-6 border rounded-xl bg-card shadow-sm">
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <div className="flex justify-between">
+                            <label htmlFor="red" className="font-medium text-red-500">Red (红)</label>
+                            <span className="font-mono text-muted-foreground">{r}</span>
+                        </div>
+                        <input
+                            id="red"
+                            type="range"
+                            min="0"
+                            max="255"
+                            value={r}
+                            onChange={(e) => setR(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between">
+                            <label htmlFor="green" className="font-medium text-green-500">Green (绿)</label>
+                            <span className="font-mono text-muted-foreground">{g}</span>
+                        </div>
+                        <input
+                            id="green"
+                            type="range"
+                            min="0"
+                            max="255"
+                            value={g}
+                            onChange={(e) => setG(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between">
+                            <label htmlFor="blue" className="font-medium text-blue-500">Blue (蓝)</label>
+                            <span className="font-mono text-muted-foreground">{b}</span>
+                        </div>
+                        <input
+                            id="blue"
+                            type="range"
+                            min="0"
+                            max="255"
+                            value={b}
+                            onChange={(e) => setB(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                        CSS Code: <code className="bg-muted px-1 py-0.5 rounded select-all">{colorString}</code>
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center space-y-4">
+                <motion.div
+                    className="w-64 h-64 rounded-full shadow-2xl border-4 border-white"
+                    style={{ backgroundColor: colorString }}
+                    animate={{ backgroundColor: colorString }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+                <div className="text-center space-y-1">
+                    <h3 className="text-xl font-bold">混合结果</h3>
+                    <p className="text-muted-foreground">
+                        {r > 200 && g > 200 && b < 100 && "黄色 (Yellow) = 红 + 绿"}
+                        {r > 200 && b > 200 && g < 100 && "品红 (Magenta) = 红 + 蓝"}
+                        {g > 200 && b > 200 && r < 100 && "青色 (Cyan) = 绿 + 蓝"}
+                        {r > 200 && g > 200 && b > 200 && "白色 (White) = 红 + 绿 + 蓝"}
+                        {r < 50 && g < 50 && b < 50 && "黑色 (Black) = 无光"}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
