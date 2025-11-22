@@ -4,6 +4,7 @@ import { useAuth } from '@/context/auth-context'
 import { useProjects } from '@/context/project-context'
 import { Button } from '@/components/ui/button'
 import { ProjectCard } from '@/components/features/project-card'
+import { EditProfileDialog } from '@/components/features/profile/edit-profile-dialog'
 import { Star, Sparkles, Award, MessageCircle, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -42,6 +43,12 @@ export default function ProfilePage() {
   const likedProjectsList = projects.filter(p => likedProjects.has(p.id))
   const completedProjectsList = projects.filter(p => completedProjects.has(p.id))
 
+  // 计算评论数量
+  const commentCount = projects.reduce((acc, project) => {
+    if (!project.comments) return acc
+    return acc + project.comments.filter(c => c.userId === user.id || c.author === userName).length
+  }, 0)
+
   // 徽章系统
   const badges = [
     {
@@ -77,7 +84,7 @@ export default function ProfilePage() {
       name: '热心助人',
       icon: <MessageCircle className="h-6 w-6 text-green-500" />,
       description: '发表 10 条评论',
-      unlocked: false, // 暂时写死
+      unlocked: commentCount >= 10,
     },
   ]
 
@@ -125,7 +132,9 @@ export default function ProfilePage() {
           </div>
 
           {/* 编辑按钮 */}
-          <Button variant="outline">编辑资料</Button>
+          <EditProfileDialog>
+            <Button variant="outline">编辑资料</Button>
+          </EditProfileDialog>
         </div>
       </div>
 

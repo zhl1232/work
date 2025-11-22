@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { ColorMixer } from "@/components/features/color-mixer";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -42,16 +44,16 @@ export default function ColorLabPage() {
                         <h3 className="font-bold text-lg mb-4">挑战任务</h3>
                         <ul className="space-y-4 mb-6">
                             <li className="flex items-center gap-2">
-                                <input type="checkbox" className="h-4 w-4" />
-                                <span>调出纯正的黄色 (255, 255, 0)</span>
+                                <Checkbox id="task1" />
+                                <Label htmlFor="task1" className="cursor-pointer">调出纯正的黄色 (255, 255, 0)</Label>
                             </li>
                             <li className="flex items-center gap-2">
-                                <input type="checkbox" className="h-4 w-4" />
-                                <span>调出纯正的紫色/品红 (255, 0, 255)</span>
+                                <Checkbox id="task2" />
+                                <Label htmlFor="task2" className="cursor-pointer">调出纯正的紫色/品红 (255, 0, 255)</Label>
                             </li>
                             <li className="flex items-center gap-2">
-                                <input type="checkbox" className="h-4 w-4" />
-                                <span>调出你最喜欢的颜色</span>
+                                <Checkbox id="task3" />
+                                <Label htmlFor="task3" className="cursor-pointer">调出你最喜欢的颜色</Label>
                             </li>
                         </ul>
                         <ConfettiButton className="w-full">我完成了所有挑战！</ConfettiButton>

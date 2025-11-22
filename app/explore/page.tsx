@@ -66,12 +66,14 @@ export default function ExplorePage() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                             {searchQuery && (
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => setSearchQuery("")}
-                                    className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-2 top-2 h-6 w-6"
                                 >
                                     <X className="h-4 w-4" />
-                                </button>
+                                </Button>
                             )}
                         </div>
                         <Button

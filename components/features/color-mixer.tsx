@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Slider } from "@/components/ui/slider";
 
 export function ColorMixer() {
     const [r, setR] = useState(0);
@@ -19,14 +20,14 @@ export function ColorMixer() {
                             <label htmlFor="red" className="font-medium text-red-500">Red (红)</label>
                             <span className="font-mono text-muted-foreground">{r}</span>
                         </div>
-                        <input
+                        <Slider
                             id="red"
-                            type="range"
-                            min="0"
-                            max="255"
-                            value={r}
-                            onChange={(e) => setR(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500"
+                            min={0}
+                            max={255}
+                            step={1}
+                            value={[r]}
+                            onValueChange={(value) => setR(value[0])}
+                            className="[&>span:first-child]:bg-red-500"
                         />
                     </div>
 
@@ -35,14 +36,14 @@ export function ColorMixer() {
                             <label htmlFor="green" className="font-medium text-green-500">Green (绿)</label>
                             <span className="font-mono text-muted-foreground">{g}</span>
                         </div>
-                        <input
+                        <Slider
                             id="green"
-                            type="range"
-                            min="0"
-                            max="255"
-                            value={g}
-                            onChange={(e) => setG(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                            min={0}
+                            max={255}
+                            step={1}
+                            value={[g]}
+                            onValueChange={(value) => setG(value[0])}
+                            className="[&>span:first-child]:bg-green-500"
                         />
                     </div>
 
@@ -51,14 +52,14 @@ export function ColorMixer() {
                             <label htmlFor="blue" className="font-medium text-blue-500">Blue (蓝)</label>
                             <span className="font-mono text-muted-foreground">{b}</span>
                         </div>
-                        <input
+                        <Slider
                             id="blue"
-                            type="range"
-                            min="0"
-                            max="255"
-                            value={b}
-                            onChange={(e) => setB(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            min={0}
+                            max={255}
+                            step={1}
+                            value={[b]}
+                            onValueChange={(value) => setB(value[0])}
+                            className="[&>span:first-child]:bg-blue-500"
                         />
                     </div>
                 </div>

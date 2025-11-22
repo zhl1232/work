@@ -4,65 +4,94 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* 浅色模式：清透的星云白 */
+    --background: 260 25% 98%;
+    --foreground: 260 40% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 260 40% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 260 40% 10%;
 
-    --primary: 243.4 75.4% 58.6%;
-    --primary-foreground: 210 40% 98%;
+    /* 主色调：深紫罗兰 (Violet) - 智慧与神秘 */
+    --primary: 265 83% 57%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* 次要色：浅紫罗兰 */
+    --secondary: 265 30% 90%;
+    --secondary-foreground: 265 83% 57%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* 柔和背景 */
+    --muted: 260 20% 96%;
+    --muted-foreground: 260 10% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* 强调色：青色 (Cyan) - 科技与未来 */
+    --accent: 180 75% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 260 20% 90%;
+    --input: 260 20% 90%;
+    --ring: 265 83% 57%;
 
     --radius: 0.5rem;
+
+    /* 浅色模式图表配色 */
+    --chart-1: 265 83% 57%;
+    --chart-2: 180 76% 40%;
+    --chart-3: 320 70% 50%;
+    --chart-4: 45 90% 40%;
+    --chart-5: 200 80% 45%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* 1. 背景更深沉：降低亮度 (8% -> 6%)，让"宇宙"更黑，从而反衬出前景的亮 */
+    --background: 260 40% 6%;
+    --foreground: 260 20% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    /* 2. 卡片对比度提升：卡片比背景稍亮，边缘更清晰 */
+    --card: 260 30% 10%;
+    --card-foreground: 260 20% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 260 30% 10%;
+    --popover-foreground: 260 20% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* 3. 主色调 (紫)：提高饱和度 (89% -> 92%) 和亮度 (66% -> 70%)，制造"辉光感" */
+    --primary: 265 92% 70%;
+    --primary-foreground: 260 45% 5%;
+    /* 文字改深，确保在亮紫色按钮上的可读性 */
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 260 30% 18%;
+    --secondary-foreground: 260 20% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 260 30% 15%;
+    --muted-foreground: 260 20% 65%;
+    /* 调亮一点，防止灰色文字看不清 */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* 4. 强调色 (青)：推高亮度和饱和度，打造"霓虹激光"效果 */
+    --accent: 180 90% 60%;
+    --accent-foreground: 260 45% 5%;
+    /* 黑色文字在青色背景上对比度最高 */
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 260 30% 18%;
+    /* 边框稍微提亮，勾勒轮廓 */
+    --input: 260 30% 18%;
+    --ring: 265 92% 70%;
+
+    /* 保留高光边框变量 */
+    --border-highlight: 265 80% 50%;
+
+    --chart-1: 265 92% 70%;
+    --chart-2: 180 90% 60%;
+    --chart-3: 320 80% 65%;
+    --chart-4: 45 90% 65%;
+    --chart-5: 200 80% 65%;
   }
 }
 

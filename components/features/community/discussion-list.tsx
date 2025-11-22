@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Heart, Tag } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export function DiscussionList() {
     const { discussions, addDiscussion } = useProjects();
@@ -101,14 +100,14 @@ export function DiscussionList() {
                         </div>
                         <p className="text-muted-foreground mb-4">{discussion.content}</p>
                         <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4 relative z-10">
-                            <button className="flex items-center gap-2 hover:text-primary transition-colors">
+                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent">
                                 <MessageSquare className="h-4 w-4" />
                                 {discussion.replies.length} 回复
-                            </button>
-                            <button className="flex items-center gap-2 hover:text-red-500 transition-colors">
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent hover:text-red-500">
                                 <Heart className="h-4 w-4" />
                                 {discussion.likes} 赞
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 ))}

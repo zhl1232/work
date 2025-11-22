@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 import { useProjects } from "@/context/project-context";
@@ -74,8 +75,7 @@ export default function SharePage() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">所需材料</label>
-                        <textarea
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        <Textarea
                             placeholder="列出需要的材料..."
                             name="materials"
                         />
@@ -83,8 +83,8 @@ export default function SharePage() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">制作步骤</label>
-                        <textarea
-                            className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        <Textarea
+                            className="min-h-[150px]"
                             placeholder="详细描述制作过程..."
                             name="description"
                         />

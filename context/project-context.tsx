@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 export type Comment = {
     id: string | number;
     author: string;
+    userId?: string;
     content: string;
     date: string;
 };

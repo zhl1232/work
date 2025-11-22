@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send } from "lucide-react";
 import { ConfettiButton } from "@/components/ui/confetti-button";
 import { useProjects } from "@/context/project-context";
-import { notFound, useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { ProjectCard } from "@/components/features/project-card";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
     const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted } = useProjects();
+    const { user } = useAuth();
     const router = useRouter();
     const [newComment, setNewComment] = useState("");
 
@@ -51,7 +53,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
         addComment(project.id, {
             id: Date.now(),
-            author: "我 (Me)",
+            author: user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
+            userId: user?.id,
             content: newComment,
             date: new Date().toLocaleDateString(),
         });
