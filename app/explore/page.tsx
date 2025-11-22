@@ -1,13 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useProjects } from "@/context/project-context";
 import { ProjectCard } from "@/components/features/project-card";
-import { useState, useMemo } from "react";
+import { ProjectCardSkeleton } from "@/components/ui/loading-skeleton";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
+import { AdvancedSearch } from "@/components/features/advanced-search";
 
 const container = {
     hidden: { opacity: 0 },
@@ -26,10 +27,6 @@ const item = {
 
 const categories = ["全部", "科学", "技术", "工程", "艺术", "数学", "其他"];
 
-import { useSearchParams } from "next/navigation";
-
-// ... imports
-
 export default function ExplorePage() {
     const { projects } = useProjects();
     const searchParams = useSearchParams();
@@ -37,16 +34,37 @@ export default function ExplorePage() {
 
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [selectedCategory, setSelectedCategory] = useState("全部");
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [advancedFilters, setAdvancedFilters] = useState({
+        difficulty: "all",
+        duration: [0, 120],
+        materials: [] as string[]
+    });
+
+    // Simulate loading
+    useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 1000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleSearch = (query: string, filters: any) => {
+        setSearchQuery(query);
+        setAdvancedFilters(filters);
+    };
 
     const filteredProjects = useMemo(() => {
         return projects.filter((project) => {
             const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 project.description?.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesCategory = selectedCategory === "全部" || project.category === selectedCategory;
-            return matchesSearch && matchesCategory;
+            
+            // Material filter
+            const matchesMaterials = advancedFilters.materials.length === 0 || 
+                (project.materials && advancedFilters.materials.some(m => project.materials?.includes(m)));
+
+            return matchesSearch && matchesCategory && matchesMaterials;
         });
-    }, [projects, searchQuery, selectedCategory]);
+    }, [projects, searchQuery, selectedCategory, advancedFilters]);
 
     return (
         <div className="container mx-auto py-8">
@@ -56,40 +74,13 @@ export default function ExplorePage() {
                         <h1 className="text-3xl font-bold tracking-tight">探索项目</h1>
                         <p className="text-muted-foreground">发现社区中最酷的 STEAM 创意。</p>
                     </div>
-                    <div className="flex w-full items-center space-x-2 md:w-auto">
-                        <div className="relative flex-1 md:w-[300px]">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="搜索项目..."
-                                className="pl-8"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            {searchQuery && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setSearchQuery("")}
-                                    className="absolute right-2 top-2 h-6 w-6"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                        <Button
-                            variant={isFilterOpen ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        >
-                            <Filter className="h-4 w-4" />
-                        </Button>
+                    <div className="flex w-full items-center space-x-2 md:w-auto md:min-w-[400px]">
+                        <AdvancedSearch onSearch={handleSearch} />
                     </div>
                 </div>
 
                 {/* Category Filter Chips */}
-                <motion.div
-                    initial={false}
-                    animate={{ height: isFilterOpen ? "auto" : "auto", opacity: 1 }}
+                <div
                     className="flex flex-wrap gap-2"
                 >
                     {categories.map((category) => (
@@ -106,10 +97,16 @@ export default function ExplorePage() {
                             {category}
                         </button>
                     ))}
-                </motion.div>
+                </div>
             </div>
 
-            {filteredProjects.length > 0 ? (
+            {isLoading ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <ProjectCardSkeleton key={i} />
+                    ))}
+                </div>
+            ) : filteredProjects.length > 0 ? (
                 <motion.div
                     variants={container}
                     initial="hidden"
@@ -132,6 +129,11 @@ export default function ExplorePage() {
                         onClick={() => {
                             setSearchQuery("");
                             setSelectedCategory("全部");
+                            setAdvancedFilters({
+                                difficulty: "all",
+                                duration: [0, 120],
+                                materials: []
+                            });
                         }}
                         className="mt-4"
                     >

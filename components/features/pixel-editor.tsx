@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Eraser, Trash2, Download, Undo } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/hooks/use-toast";
 
 const GRID_SIZE = 16;
 const COLORS = [
@@ -19,7 +19,7 @@ export function PixelEditor() {
     const [selectedColor, setSelectedColor] = useState<string>(COLORS[0]);
     const [isDrawing, setIsDrawing] = useState(false);
     const [history, setHistory] = useState<string[][]>([]);
-    const { showToast } = useToast();
+    const { toast } = useToast();
     const canvasRef = useRef<HTMLDivElement>(null);
 
     const handleMouseDown = (index: number) => {
@@ -53,7 +53,10 @@ export function PixelEditor() {
     const clearGrid = () => {
         setHistory(prev => [...prev, [...grid]]);
         setGrid(Array(GRID_SIZE * GRID_SIZE).fill(""));
-        showToast("画布已清空", "info");
+        toast({
+            title: "画布已清空",
+            description: "您可以重新开始创作了",
+        });
     };
 
     const undo = () => {

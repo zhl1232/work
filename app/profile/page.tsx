@@ -3,16 +3,20 @@
 import { useAuth } from '@/context/auth-context'
 import { useProjects } from '@/context/project-context'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ProjectCard } from '@/components/features/project-card'
 import { EditProfileDialog } from '@/components/features/profile/edit-profile-dialog'
-import { Star, Sparkles, Award, MessageCircle, Loader2 } from 'lucide-react'
+import { Award, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useGamification, BADGES } from '@/context/gamification-context'
+import { LevelProgress } from '@/components/features/gamification/level-progress'
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth()
   const { projects, likedProjects, completedProjects } = useProjects()
   const [activeTab, setActiveTab] = useState<'my-projects' | 'liked' | 'completed'>('liked')
+  const { unlockedBadges } = useGamification()
 
   // 如果未登录，重定向到登录页
   useEffect(() => {
@@ -43,53 +47,6 @@ export default function ProfilePage() {
   const likedProjectsList = projects.filter(p => likedProjects.has(p.id))
   const completedProjectsList = projects.filter(p => completedProjects.has(p.id))
 
-  // 计算评论数量
-  const commentCount = projects.reduce((acc, project) => {
-    if (!project.comments) return acc
-    return acc + project.comments.filter(c => c.userId === user.id || c.author === userName).length
-  }, 0)
-
-  // 徽章系统
-  const badges = [
-    {
-      id: 'explorer',
-      name: '初级探索者',
-      icon: <Star className="h-6 w-6 text-yellow-500" />,
-      description: '完成 1 个项目',
-      unlocked: completedProjects.size >= 1,
-    },
-    {
-      id: 'scientist',
-      name: '小小科学家',
-      icon: <Sparkles className="h-6 w-6 text-blue-500" />,
-      description: '完成 3 个项目',
-      unlocked: completedProjects.size >= 3,
-    },
-    {
-      id: 'master',
-      name: 'STEAM 大师',
-      icon: <Award className="h-6 w-6 text-purple-500" />,
-      description: '完成 10 个项目',
-      unlocked: completedProjects.size >= 10,
-    },
-    {
-      id: 'creator',
-      name: '创意达人',
-      icon: '🎨',
-      description: '发布 3 个项目',
-      unlocked: myProjects.length >= 3,
-    },
-    {
-      id: 'helpful',
-      name: '热心助人',
-      icon: <MessageCircle className="h-6 w-6 text-green-500" />,
-      description: '发表 10 条评论',
-      unlocked: commentCount >= 10,
-    },
-  ]
-
-  const unlockedBadges = badges.filter(b => b.unlocked)
-
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       {/* 用户信息卡片 */}
@@ -112,22 +69,15 @@ export default function ProfilePage() {
           </div>
 
           {/* 用户信息 */}
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-3xl font-bold mb-2">{userName}</h1>
-            <p className="text-muted-foreground mb-4">{userEmail}</p>
-            <div className="flex flex-wrap gap-4 justify-center md:justify-start text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">发布:</span>
-                <span className="text-primary font-bold">{myProjects.length}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">收藏:</span>
-                <span className="text-primary font-bold">{likedProjects.size}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">完成:</span>
-                <span className="text-primary font-bold">{completedProjects.size}</span>
-              </div>
+          <div className="flex-1 text-center md:text-left w-full">
+            <div className="flex flex-col md:flex-row justify-between items-center md:items-start mb-4">
+                <div>
+                    <h1 className="text-3xl font-bold mb-2">{userName}</h1>
+                    <p className="text-muted-foreground">{userEmail}</p>
+                </div>
+                <div className="w-full md:w-64 mt-4 md:mt-0">
+                    <LevelProgress />
+                </div>
             </div>
           </div>
 
@@ -138,32 +88,72 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* 统计仪表盘 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">已发布项目</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+                <div className="text-2xl font-bold">{myProjects.length}</div>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">获赞总数</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+                <div className="text-2xl font-bold">
+                    {myProjects.reduce((acc, p) => acc + p.likes, 0)}
+                </div>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">收藏项目</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+                <div className="text-2xl font-bold">{likedProjects.size}</div>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">已完成挑战</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+                <div className="text-2xl font-bold">{completedProjects.size}</div>
+            </CardContent>
+        </Card>
+      </div>
+
       {/* 徽章展示 */}
       <div className="bg-card rounded-lg border p-6 mb-8">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           <Award className="h-5 w-5 text-primary" />
           我的成就徽章
           <span className="text-sm font-normal text-muted-foreground">
-            ({unlockedBadges.length}/{badges.length})
+            ({unlockedBadges.size}/{BADGES.length})
           </span>
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {badges.map((badge) => (
+          {BADGES.map((badge) => {
+            const isUnlocked = unlockedBadges.has(badge.id);
+            return (
             <div
               key={badge.id}
               className={`p-4 rounded-lg border text-center transition-all ${
-                badge.unlocked
+                isUnlocked
                   ? 'bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 scale-100'
                   : 'bg-muted/30 opacity-50 grayscale'
               }`}
             >
               <div className="text-3xl mb-2 flex justify-center">
-                {typeof badge.icon === 'string' ? badge.icon : badge.icon}
+                {badge.icon}
               </div>
               <div className="font-medium text-sm mb-1">{badge.name}</div>
               <div className="text-xs text-muted-foreground">{badge.description}</div>
             </div>
-          ))}
+          )})}
         </div>
       </div>
 
