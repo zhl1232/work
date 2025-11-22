@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ProjectProvider } from "@/context/project-context";
+import { AuthProvider } from "@/context/auth-context";
 import Link from "next/link";
 import { Rocket, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/features/global-search";
 import { ToastProvider } from "@/components/ui/toast";
-import ThemeToggle from "@/components/ThemeToggle";
+import { ThemeProvider } from "@/components/theme-provider";
+import { UserButton } from "@/components/user-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -23,9 +26,16 @@ export default function RootLayout({
     return (
         <html lang="zh">
             <body className={inter.className}>
-                <ProjectProvider>
-                    <ToastProvider>
-                        <div className="flex min-h-screen flex-col bg-background">
+                <AuthProvider>
+                    <ProjectProvider>
+                        <ThemeProvider
+                            attribute="class"
+                            defaultTheme="system"
+                            enableSystem
+                            disableTransitionOnChange
+                        >
+                            <ToastProvider>
+                                <div className="flex min-h-screen flex-col bg-background">
                             {/* Header */}
                             <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                                 <div className="container flex h-16 max-w-screen-2xl items-center px-4 md:px-8">
@@ -53,11 +63,7 @@ export default function RootLayout({
                                             <Button variant="ghost" size="icon" className="text-muted-foreground">
                                                 <Bell className="h-5 w-5" />
                                             </Button>
-                                            <Link href="/profile">
-                                                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary p-[1px]">
-                                                    <div className="h-full w-full rounded-full bg-background" />
-                                                </div>
-                                            </Link>
+                                            <UserButton />
                                         </nav>
                                     </div>
                                 </div>
@@ -65,8 +71,10 @@ export default function RootLayout({
                             {/* Main content */}
                             <main className="flex-1">{children}</main>
                         </div>
-                    </ToastProvider>
-                </ProjectProvider>
+                            </ToastProvider>
+                        </ThemeProvider>
+                    </ProjectProvider>
+                </AuthProvider>
             </body>
         </html>
     );

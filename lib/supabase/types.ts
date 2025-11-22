@@ -1,0 +1,368 @@
+/**
+ * Supabase 数据库类型定义
+ * 这个文件定义了数据库表的 TypeScript 类型
+ * 理想情况下应该使用 Supabase CLI 自动生成，但这里先手动定义核心类型
+ */
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          username: string | null
+          display_name: string | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          username?: string | null
+          display_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          username?: string | null
+          display_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      projects: {
+        Row: {
+          id: number
+          title: string
+          description: string | null
+          author_id: string | null
+          image_url: string | null
+          category: string | null
+          difficulty: string | null
+          duration: number | null
+          likes_count: number
+          views_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          title: string
+          description?: string | null
+          author_id?: string | null
+          image_url?: string | null
+          category?: string | null
+          difficulty?: string | null
+          duration?: number | null
+          likes_count?: number
+          views_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string
+          description?: string | null
+          author_id?: string | null
+          image_url?: string | null
+          category?: string | null
+          difficulty?: string | null
+          duration?: number | null
+          likes_count?: number
+          views_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      project_materials: {
+        Row: {
+          id: number
+          project_id: number
+          material: string
+          sort_order: number | null
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          material: string
+          sort_order?: number | null
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          material?: string
+          sort_order?: number | null
+        }
+      }
+      project_steps: {
+        Row: {
+          id: number
+          project_id: number
+          title: string
+          description: string | null
+          image_url: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          title: string
+          description?: string | null
+          image_url?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          title?: string
+          description?: string | null
+          image_url?: string | null
+          sort_order?: number | null
+        }
+      }
+      comments: {
+        Row: {
+          id: number
+          project_id: number
+          author_id: string
+          content: string
+          parent_id: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          author_id: string
+          content: string
+          parent_id?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          author_id?: string
+          content?: string
+          parent_id?: number | null
+          created_at?: string
+        }
+      }
+      likes: {
+        Row: {
+          user_id: string
+          project_id: number
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          project_id: number
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          project_id?: number
+          created_at?: string
+        }
+      }
+      completed_projects: {
+        Row: {
+          user_id: string
+          project_id: number
+          completed_at: string
+        }
+        Insert: {
+          user_id: string
+          project_id: number
+          completed_at?: string
+        }
+        Update: {
+          user_id?: string
+          project_id?: number
+          completed_at?: string
+        }
+      }
+      discussions: {
+        Row: {
+          id: number
+          title: string
+          content: string
+          author_id: string
+          tags: string[] | null
+          likes_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          title: string
+          content: string
+          author_id: string
+          tags?: string[] | null
+          likes_count?: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string
+          content?: string
+          author_id?: string
+          tags?: string[] | null
+          likes_count?: number
+          created_at?: string
+        }
+      }
+      discussion_replies: {
+        Row: {
+          id: number
+          discussion_id: number
+          author_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          discussion_id: number
+          author_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          discussion_id?: number
+          author_id?: string
+          content?: string
+          created_at?: string
+        }
+      }
+      challenges: {
+        Row: {
+          id: number
+          title: string
+          description: string | null
+          image_url: string | null
+          tags: string[] | null
+          participants_count: number
+          end_date: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          title: string
+          description?: string | null
+          image_url?: string | null
+          tags?: string[] | null
+          participants_count?: number
+          end_date?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string
+          description?: string | null
+          image_url?: string | null
+          tags?: string[] | null
+          participants_count?: number
+          end_date?: string | null
+          created_at?: string
+        }
+      }
+      challenge_participants: {
+        Row: {
+          user_id: string
+          challenge_id: number
+          joined_at: string
+        }
+        Insert: {
+          user_id: string
+          challenge_id: number
+          joined_at?: string
+        }
+        Update: {
+          user_id?: string
+          challenge_id?: number
+          joined_at?: string
+        }
+      }
+      badges: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          icon: string | null
+          condition: Json | null
+        }
+        Insert: {
+          id: string
+          name: string
+          description?: string | null
+          icon?: string | null
+          condition?: Json | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          icon?: string | null
+          condition?: Json | null
+        }
+      }
+      user_badges: {
+        Row: {
+          user_id: string
+          badge_id: string
+          unlocked_at: string
+        }
+        Insert: {
+          user_id: string
+          badge_id: string
+          unlocked_at?: string
+        }
+        Update: {
+          user_id?: string
+          badge_id?: string
+          unlocked_at?: string
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      increment_project_likes: {
+        Args: { project_id: number }
+        Returns: void
+      }
+      decrement_project_likes: {
+        Args: { project_id: number }
+        Returns: void
+      }
+      increment_project_views: {
+        Args: { project_id: number }
+        Returns: void
+      }
+      increment_challenge_participants: {
+        Args: { challenge_id: number }
+        Returns: void
+      }
+      decrement_challenge_participants: {
+        Args: { challenge_id: number }
+        Returns: void
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+  }
+}
