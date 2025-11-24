@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     // 创建项目
     const { data: project, error: projectError } = await supabase
       .from('projects')
+      // @ts-expect-error - Supabase type inference issue
       .insert({
         title,
         description,
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
         .from('project_materials')
         .insert(
           materials.map((material: string, index: number) => ({
-            project_id: project.id,
+            project_id: (project as any).id,
             material,
             sort_order: index,
           }))
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
         .from('project_steps')
         .insert(
           steps.map((step: { title: string; description: string }, index: number) => ({
-            project_id: project.id,
+            project_id: (project as any).id,
             title: step.title,
             description: step.description,
             sort_order: index,

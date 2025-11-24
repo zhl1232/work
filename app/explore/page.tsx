@@ -27,7 +27,9 @@ const item = {
 
 const categories = ["全部", "科学", "技术", "工程", "艺术", "数学", "其他"];
 
-export default function ExplorePage() {
+import { Suspense } from "react";
+
+function ExploreContent() {
     const { projects } = useProjects();
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get("q") || "";
@@ -142,5 +144,13 @@ export default function ExplorePage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function ExplorePage() {
+    return (
+        <Suspense fallback={<div className="container mx-auto py-8"><ProjectCardSkeleton /></div>}>
+            <ExploreContent />
+        </Suspense>
     );
 }
