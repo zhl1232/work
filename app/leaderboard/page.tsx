@@ -27,17 +27,17 @@ const MOCK_USERS: LeaderboardUser[] = [
 ];
 
 export default function LeaderboardPage() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { xp, level, unlockedBadges } = useGamification();
 
     // Combine current user with mock users and sort
     const currentUser: LeaderboardUser | null = user ? {
         id: user.id,
-        name: user.user_metadata?.full_name || "我",
+        name: profile?.display_name || user.user_metadata?.full_name || "我",
         xp,
         level,
         badges: unlockedBadges.size,
-        avatar: user.user_metadata?.avatar_url,
+        avatar: profile?.avatar_url || user.user_metadata?.avatar_url,
         isCurrentUser: true
     } : null;
 

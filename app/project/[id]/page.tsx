@@ -10,10 +10,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/features/project-card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
     const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted } = useProjects();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const router = useRouter();
     const [newComment, setNewComment] = useState("");
 
@@ -53,7 +54,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
         addComment(project.id, {
             id: Date.now(),
-            author: user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
+            author: profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
             userId: user?.id,
             content: newComment,
             date: new Date().toLocaleDateString(),
@@ -125,9 +126,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                         </h3>
 
                         <form onSubmit={handleSubmitComment} className="flex gap-4 mb-8">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                👤
-                            </div>
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url || ""} />
+                                <AvatarFallback>👤</AvatarFallback>
+                            </Avatar>
                             <div className="flex-1 flex gap-2">
                                 <Input
                                     placeholder="分享你的想法..."

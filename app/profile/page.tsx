@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 
 import { useAuth } from '@/context/auth-context'
 import { useProjects } from '@/context/project-context'
@@ -8,22 +9,23 @@ import { ProjectCard } from '@/components/features/project-card'
 import { EditProfileDialog } from '@/components/features/profile/edit-profile-dialog'
 import { Award, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useGamification, BADGES } from '@/context/gamification-context'
 import { LevelProgress } from '@/components/features/gamification/level-progress'
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { projects, likedProjects, completedProjects } = useProjects()
   const [activeTab, setActiveTab] = useState<'my-projects' | 'liked' | 'completed'>('liked')
   const { unlockedBadges } = useGamification()
+  const router = useRouter()
 
   // 如果未登录，重定向到登录页
   useEffect(() => {
     if (!authLoading && !user) {
-      window.location.href = '/login'
+      router.push('/login')
     }
-  }, [user, authLoading])
+  }, [user, authLoading, router])
 
   if (authLoading) {
     return (
@@ -38,12 +40,12 @@ export default function ProfilePage() {
   }
 
   // 获取用户信息
-  const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '未命名用户'
-  const userAvatar = user.user_metadata?.avatar_url || null
+  const userName = profile?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '未命名用户'
+  const userAvatar = profile?.avatar_url || user.user_metadata?.avatar_url || null
   const userEmail = user.email || ''
 
   // 过滤用户相关的项目
-  const myProjects = projects.filter(p => p.author === userName || p.author === '我 (Me)')
+  const myProjects = projects.filter(p => p.author_id === user.id)
   const likedProjectsList = projects.filter(p => likedProjects.has(p.id))
   const completedProjectsList = projects.filter(p => completedProjects.has(p.id))
 

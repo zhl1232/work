@@ -4,14 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProjects } from "@/context/project-context";
+import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 
 export default function SharePage() {
     const { addProject } = useProjects();
+    const { user } = useAuth();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+
+    // 检查登录状态
+    useEffect(() => {
+        if (!user) {
+            router.push('/login');
+        }
+    }, [user, router]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -28,7 +37,8 @@ export default function SharePage() {
         const newProject = {
             id: Date.now(),
             title: formData.get("title") as string,
-            author: "我 (Me)", // Mock user
+            author: user?.user_metadata?.display_name || user?.email || "匿名用户",
+            author_id: user!.id, // 添加必需的 author_id 字段
             image: "https://images.unsplash.com/photo-1518152006812-edab29b069ac?q=80&w=2070&auto=format&fit=crop", // Random placeholder
             category: "其他",
             likes: 0,
@@ -44,6 +54,11 @@ export default function SharePage() {
         setIsLoading(false);
         router.push("/explore");
     };
+
+    // 未登录时不显示内容(将重定向)
+    if (!user) {
+        return null;
+    }
 
     return (
         <div className="container mx-auto py-8 max-w-2xl">

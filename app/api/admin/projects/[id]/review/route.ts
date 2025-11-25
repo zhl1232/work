@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { Profile } from '@/lib/types/database'
 
 /**
  * POST /api/admin/projects/[id]/review
@@ -27,9 +28,9 @@ export async function POST(
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .single() as { data: Pick<Profile, 'role'> | null }
   
-  if (!profile || !['moderator', 'admin'].includes((profile as any).role)) {
+  if (!profile || !['moderator', 'admin'].includes(profile.role)) {
     return NextResponse.json(
       { error: 'Permission denied: moderator or admin role required' },
       { status: 403 }
@@ -60,7 +61,7 @@ export async function POST(
       // 调用批准函数
       const { error } = await supabase.rpc('approve_project', {
         project_id: projectId
-      })
+      } as any)
       
       if (error) {
         throw error

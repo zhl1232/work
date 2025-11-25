@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { Profile } from '@/lib/types/database'
 
 /**
  * DELETE /api/admin/tags/[id]
@@ -27,9 +28,9 @@ export async function DELETE(
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .single() as { data: Pick<Profile, 'role'> | null }
   
-  if (!profile || !['moderator', 'admin'].includes((profile as any).role)) {
+  if (!profile || !['moderator', 'admin'].includes(profile.role)) {
     return NextResponse.json(
       { error: 'Permission denied: moderator or admin role required' },
       { status: 403 }

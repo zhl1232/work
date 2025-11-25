@@ -39,6 +39,7 @@ export type Project = {
     id: string | number;
     title: string;
     author: string;
+    author_id: string; // Added for reliable ownership check
     image: string;
     category: string;
     likes: number;
@@ -104,6 +105,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             id: p.id,
             title: p.title,
             author: p.profiles?.display_name || p.profiles?.username || 'Unknown',
+            author_id: p.author_id, // Map author_id
             image: p.image_url || '',
             category: p.category || '',
             likes: p.likes_count,
@@ -234,6 +236,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         fetchChallenges();
     }, [user]);
 
+    const getUserStats = async () => {
+        if (!user) return { projectsPublished: 0, projectsLiked: 0, projectsCompleted: 0, commentsCount: 0 };
+
+        const { count: publishedCount } = await supabase
+            .from('projects')
+            .select('*', { count: 'exact', head: true })
+            .eq('author_id', user.id);
+
+        const { count: commentsCount } = await supabase
+            .from('comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('author_id', user.id);
+
+        return {
+            projectsPublished: publishedCount || 0,
+            projectsLiked: likedProjects.size,
+            projectsCompleted: completedProjects.size,
+            commentsCount: commentsCount || 0
+        };
+    };
+
     const addProject = async (project: Project) => {
         if (!user) return;
 
@@ -283,11 +306,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         addXp(50, "发布新项目");
         
         // Check badges
+        const stats = await getUserStats();
+        // Manually increment published count since the new project might not be indexed yet or we want immediate feedback
         checkBadges({
-            projectsPublished: projects.filter(p => p.author === user.user_metadata.full_name).length + 1, // Approximate
-            projectsLiked: likedProjects.size,
-            projectsCompleted: completedProjects.size,
-            commentsCount: 0 // Need to track this better
+            ...stats,
+            projectsPublished: stats.projectsPublished + 1
         });
 
         fetchProjects();
@@ -307,12 +330,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // Award XP for commenting
         addXp(5, "发表评论");
         
-        // Check badges (simplified)
+        // Check badges
+        const stats = await getUserStats();
         checkBadges({
-            projectsPublished: 0,
-            projectsLiked: likedProjects.size,
-            projectsCompleted: completedProjects.size,
-            commentsCount: 10 // Placeholder, ideally fetch count
+            ...stats,
+            commentsCount: stats.commentsCount + 1
         });
 
         fetchProjects();
@@ -370,11 +392,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             addXp(20, "完成项目");
             
              // Check badges
+            const stats = await getUserStats();
             checkBadges({
-                projectsPublished: 0,
-                projectsLiked: likedProjects.size,
-                projectsCompleted: completedProjects.size + 1,
-                commentsCount: 0
+                ...stats,
+                projectsCompleted: completedProjects.size + 1
             });
         }
     };
