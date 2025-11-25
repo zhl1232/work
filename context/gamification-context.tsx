@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AchievementToast } from "@/components/features/gamification/achievement-toast";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/context/auth-context";
 
 // Badge Definitions
 export interface Badge {
@@ -74,21 +76,42 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     const [xp, setXp] = useState(0);
     const [unlockedBadges, setUnlockedBadges] = useState<Set<string>>(new Set());
     const { toast } = useToast();
+    const supabase = createClient();
+    const { user } = useAuth();
 
-    // Load from localStorage
+    // Load from Supabase
     useEffect(() => {
-        const savedXp = localStorage.getItem("steam_xp");
-        const savedBadges = localStorage.getItem("steam_badges");
-        
-        if (savedXp) setXp(parseInt(savedXp));
-        if (savedBadges) setUnlockedBadges(new Set(JSON.parse(savedBadges)));
-    }, []);
+        if (!user) {
+            setXp(0);
+            setUnlockedBadges(new Set());
+            return;
+        }
 
-    // Persist to localStorage
-    useEffect(() => {
-        localStorage.setItem("steam_xp", xp.toString());
-        localStorage.setItem("steam_badges", JSON.stringify(Array.from(unlockedBadges)));
-    }, [xp, unlockedBadges]);
+        const fetchData = async () => {
+            // Fetch XP
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('xp')
+                .eq('id', user.id)
+                .single();
+            
+            if (profile) {
+                setXp(profile.xp || 0);
+            }
+
+            // Fetch Badges
+            const { data: badges } = await supabase
+                .from('user_badges')
+                .select('badge_id')
+                .eq('user_id', user.id);
+            
+            if (badges) {
+                setUnlockedBadges(new Set(badges.map(b => b.badge_id)));
+            }
+        };
+
+        fetchData();
+    }, [user]);
 
     // Level Calculation: Level = floor(sqrt(XP / 100)) + 1
     // XP = 100 * (Level - 1)^2
@@ -99,34 +122,46 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     const levelTotalNeeded = nextLevelXp - currentLevelBaseXp;
     const progress = (levelProgress / levelTotalNeeded) * 100;
 
-    const addXp = (amount: number, reason?: string) => {
-        setXp((prev) => {
-            const newXp = prev + amount;
-            const oldLevel = Math.floor(Math.sqrt(prev / 100)) + 1;
-            const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
+    const addXp = async (amount: number, _reason?: string) => {
+        if (!user) return;
 
-            if (newLevel > oldLevel) {
-                toast({
-                    description: (
-                        <AchievementToast 
-                            title="升级啦！" 
-                            description={`恭喜你达到了等级 ${newLevel}！`} 
-                            icon="🎉" 
-                        />
-                    ),
-                    duration: 5000,
-                });
-            } else if (reason) {
-                 // Optional: Toast for small XP gains? Maybe too noisy.
-                 // keeping it silent for now unless it's a big event
-            }
-            return newXp;
-        });
+        const newXp = xp + amount;
+        setXp(newXp); // Optimistic update
+
+        const oldLevel = Math.floor(Math.sqrt(xp / 100)) + 1;
+        const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
+
+        if (newLevel > oldLevel) {
+            toast({
+                description: (
+                    <AchievementToast 
+                        title="升级啦！" 
+                        description={`恭喜你达到了等级 ${newLevel}！`} 
+                        icon="🎉" 
+                    />
+                ),
+                duration: 5000,
+            });
+        }
+
+        // Update Supabase
+        const { error } = await supabase
+            .from('profiles')
+            .update({ xp: newXp })
+            .eq('id', user.id);
+
+        if (error) {
+            console.error('Failed to update XP:', error);
+            // Revert optimistic update if needed, but for XP it might be okay to just log error
+        }
     };
 
-    const checkBadges = (stats: UserStats) => {
-        BADGES.forEach((badge) => {
+    const checkBadges = async (stats: UserStats) => {
+        if (!user) return;
+
+        BADGES.forEach(async (badge) => {
             if (!unlockedBadges.has(badge.id) && badge.condition(stats)) {
+                // Optimistic update
                 setUnlockedBadges((prev) => {
                     const newSet = new Set(prev);
                     newSet.add(badge.id);
@@ -143,6 +178,18 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                     ),
                     duration: 5000,
                 });
+
+                // Update Supabase
+                const { error } = await supabase
+                    .from('user_badges')
+                    .insert({
+                        user_id: user.id,
+                        badge_id: badge.id
+                    });
+                
+                if (error) {
+                    console.error(`Failed to unlock badge ${badge.id}:`, error);
+                }
             }
         });
     };

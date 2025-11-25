@@ -22,24 +22,49 @@ export function EditProfileDialog({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "")
-  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || "")
+  const [username, setUsername] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const [bio, setBio] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState("")
   const supabase = createClient()
   const router = useRouter()
 
+  // Load profile data when dialog opens
+  const loadProfile = async () => {
+    if (!user) return
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('username, display_name, bio, avatar_url')
+      .eq('id', user.id)
+      .single()
+
+    if (data) {
+      setUsername(data.username || "")
+      setDisplayName(data.display_name || "")
+      setBio(data.bio || "")
+      setAvatarUrl(data.avatar_url || "")
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: fullName,
+      const { error: _error } = await supabase
+        .from('profiles')
+        .update({
+          username,
+          display_name: displayName,
+          bio,
           avatar_url: avatarUrl,
-        },
-      })
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
 
-      if (error) throw error
+      if (_error) throw _error
 
       setOpen(false)
       router.refresh()
@@ -51,7 +76,10 @@ export function EditProfileDialog({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(open) => {
+      setOpen(open)
+      if (open) loadProfile()
+    }}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -65,14 +93,39 @@ export function EditProfileDialog({ children }: { children: React.ReactNode }) {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+              <Label htmlFor="username" className="text-right">
+                账号ID
+              </Label>
+              <Input
+                id="username"
+                value={username}
+                disabled
+                className="col-span-3 bg-muted"
+                placeholder="系统生成"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="display_name" className="text-right">
                 昵称
               </Label>
               <Input
-                id="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                id="display_name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 className="col-span-3"
+                placeholder="显示的名称"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="bio" className="text-right">
+                简介
+              </Label>
+              <Input
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="col-span-3"
+                placeholder="一句话介绍自己"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

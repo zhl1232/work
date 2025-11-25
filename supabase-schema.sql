@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url text,
   bio text,
   created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
+  updated_at timestamp with time zone DEFAULT now(),
+  xp int DEFAULT 0
 );
 
 COMMENT ON TABLE public.profiles IS '用户扩展信息表';

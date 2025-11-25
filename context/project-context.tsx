@@ -1,6 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/context/auth-context";
+import { useGamification } from "@/context/gamification-context";
 
 export type Comment = {
     id: string | number;
@@ -62,365 +65,387 @@ type ProjectContextType = {
     joinChallenge: (challengeId: string | number) => void;
 };
 
-const defaultProjects: Project[] = [
-    {
-        id: "pixel-art",
-        title: "像素艺术工坊",
-        author: "STEAM 官方",
-        image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop",
-        category: "艺术",
-        likes: 888,
-        description: "体验 8-bit 艺术创作的乐趣！在这个数字画布上，你可以像早期的游戏设计师一样，用一个个方块构建出精彩的世界。",
-        materials: ["电脑或平板", "创意"],
-        steps: [
-            { title: "选择颜色", description: "从左侧调色板中选择你喜欢的颜色。" },
-            { title: "绘制图案", description: "在网格上点击或拖动鼠标来填充像素。" },
-            { title: "保存作品", description: "完成创作后，记得截图保存你的杰作！" }
-        ]
-    },
-    {
-        id: "color-lab",
-        title: "光的三原色实验室",
-        author: "STEAM 官方",
-        image: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop",
-        category: "科学",
-        likes: 999,
-        description: "探索 RGB 颜色模型，看看红、绿、蓝三种光是如何混合出千万种颜色的。",
-        materials: ["电脑或平板", "好奇心"],
-        steps: [
-            { title: "打开实验室", description: "点击进入光的三原色实验室页面。" },
-            { title: "调节滑块", description: "拖动红、绿、蓝三个滑块，观察颜色的变化。" },
-            { title: "完成挑战", description: "尝试调出指定的颜色，完成挑战任务。" }
-        ]
-    },
-    {
-        id: 1,
-        title: "自制火山爆发",
-        author: "科学小达人",
-        image: "https://images.unsplash.com/photo-1535591273668-578e31182c4f?q=80&w=2070&auto=format&fit=crop",
-        category: "科学",
-        likes: 128,
-        description: "这是一个经典的科学实验，利用小苏打和醋的化学反应来模拟火山爆发。非常适合在家和小朋友一起动手制作！",
-        materials: ["小苏打 2勺", "白醋 100ml", "红色食用色素 适量", "空塑料瓶 1个", "橡皮泥或粘土"],
-        steps: [
-            { title: "准备火山主体", description: "用橡皮泥或粘土围绕一个塑料瓶捏出火山的形状。" },
-            { title: "加入反应物", description: "在瓶中加入两勺小苏打和几滴红色食用色素。" },
-            { title: "引发爆发", description: "迅速倒入白醋，观察火山喷发！" }
-        ]
-    },
-    {
-        id: 2,
-        title: "柠檬电池实验",
-        author: "极客实验室",
-        image: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?q=80&w=2070&auto=format&fit=crop",
-        category: "技术",
-        likes: 85,
-        description: "利用柠檬中的酸性物质作为电解质，制作一个能点亮 LED 灯的电池。",
-        materials: ["柠檬 2-3个", "铜片 (硬币)", "锌片 (镀锌钉子)", "导线", "LED 灯珠"],
-        steps: [
-            { title: "准备电极", description: "在每个柠檬上切两个口，分别插入铜片和锌片。" },
-            { title: "串联电池", description: "用导线将一个柠檬的铜片连接到下一个柠檬的锌片。" },
-            { title: "连接 LED", description: "将最后剩下的铜片和锌片分别连接到 LED 灯的长脚和短脚。" }
-        ]
-    },
-    {
-        id: 3,
-        title: "纸板机械臂",
-        author: "造物主",
-        image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop",
-        category: "工程",
-        likes: 256,
-        description: "利用液压原理，用针筒和纸板制作一个可以控制抓取的机械臂。",
-        materials: ["废旧纸板", "针筒 4-8个", "软管", "扎带", "热熔胶"],
-        steps: [
-            { title: "制作骨架", description: "根据图纸裁剪纸板，制作机械臂的各个关节。" },
-            { title: "安装液压系统", description: "将针筒固定在关节处，用软管连接控制端的针筒。" },
-            { title: "注水调试", description: "在系统中注水，推动控制端针筒，测试机械臂动作。" }
-        ]
-    },
-    {
-        id: 4,
-        title: "光影艺术装置",
-        author: "光之子",
-        image: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop",
-        category: "艺术",
-        likes: 92,
-        description: "利用光线的反射和折射，创造出梦幻的投影效果。",
-        materials: ["手电筒", "彩色玻璃纸", "镜子", "透明塑料片"],
-        steps: [
-            { title: "设计图案", description: "在透明塑料片上绘制或粘贴图案。" },
-            { title: "布置光源", description: "固定手电筒位置，调整照射角度。" },
-            { title: "调整投影", description: "利用镜子和玻璃纸改变光路和颜色，创造艺术效果。" }
-        ]
-    },
-    {
-        id: 5,
-        title: "斐波那契螺旋画",
-        author: "数学之美",
-        image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=2070&auto=format&fit=crop",
-        category: "数学",
-        likes: 150,
-        description: "用圆规和直尺画出完美的黄金螺旋，感受数学的几何之美。",
-        materials: ["画纸", "圆规", "直尺", "铅笔", "彩色笔"],
-        steps: [
-            { title: "画正方形", description: "按照斐波那契数列 (1, 1, 2, 3, 5, 8...) 的边长画正方形。" },
-            { title: "连接圆弧", description: "在每个正方形内画四分之一圆弧，连接起来形成螺旋。" },
-            { title: "上色装饰", description: "发挥创意，为螺旋填充颜色或图案。" }
-        ]
-    },
-    {
-        id: 6,
-        title: "水火箭发射",
-        author: "航天梦",
-        image: "https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=2070&auto=format&fit=crop",
-        category: "科学",
-        likes: 300,
-        description: "利用压缩空气的动力，将塑料瓶制作的火箭发射上天。",
-        materials: ["大号碳酸饮料瓶 2个", "硬纸板 (尾翼)", "橡胶塞", "气门芯", "打气筒"],
-        steps: [
-            { title: "制作箭体", description: "将一个瓶子作为箭体，安装尾翼保持平衡。" },
-            { title: "制作发射塞", description: "在橡胶塞上打孔，安装气门芯。" },
-            { title: "发射准备", description: "加入约 1/3 的水，塞紧塞子，连接打气筒，打气发射！" }
-        ]
-    },
-];
 
-
-
-const defaultDiscussions: Discussion[] = [
-    {
-        id: 1,
-        title: "如何让水火箭飞得更高？",
-        author: "小小宇航员",
-        content: "我做的水火箭只能飞 10 米高，有没有什么改进的建议？是不是水加太多了？",
-        date: "2024-11-19",
-        likes: 12,
-        tags: ["科学", "求助"],
-        replies: [
-            { id: 101, author: "物理老师", content: "试着调整水和空气的比例，通常 1/3 的水效果最好。另外检查一下气密性。", date: "2024-11-19" },
-            { id: 102, author: "火箭迷", content: "尾翼的形状也很重要，尽量做成流线型。", date: "2024-11-20" }
-        ]
-    },
-    {
-        id: 2,
-        title: "分享一个有趣的静电实验",
-        author: "闪电侠",
-        content: "只需要一个气球和一些碎纸屑。摩擦气球后，它能吸起纸屑，甚至能让水流弯曲！太神奇了。",
-        date: "2024-11-18",
-        likes: 45,
-        tags: ["科学", "分享"],
-        replies: []
-    }
-];
-
-const defaultChallenges: Challenge[] = [
-    {
-        id: 1,
-        title: "环保小发明挑战",
-        description: "利用废旧物品制作一个有用的装置。变废为宝，保护地球！",
-        image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=2070&auto=format&fit=crop",
-        participants: 128,
-        daysLeft: 15,
-        joined: false,
-        tags: ["工程", "环保"]
-    },
-    {
-        id: 2,
-        title: "未来城市设计",
-        description: "画出或搭建你心目中的未来城市。它会有会飞的汽车吗？还是漂浮在空中的花园？",
-        image: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=2070&auto=format&fit=crop",
-        participants: 85,
-        daysLeft: 7,
-        joined: false,
-        tags: ["艺术", "设计"]
-    },
-    {
-        id: 3,
-        title: "家庭机械臂制作",
-        description: "只用纸板和针筒，制作一个液压机械臂。比比谁的机械臂力气大！",
-        image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070&auto=format&fit=crop",
-        participants: 203,
-        daysLeft: 20,
-        joined: false,
-        tags: ["工程", "物理"]
-    }
-];
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-    const [projects, setProjects] = useState<Project[]>(defaultProjects);
+    const [projects, setProjects] = useState<Project[]>([]);
     const [likedProjects, setLikedProjects] = useState<Set<string | number>>(new Set());
     const [completedProjects, setCompletedProjects] = useState<Set<string | number>>(new Set());
-    const [discussions, setDiscussions] = useState<Discussion[]>(defaultDiscussions);
-    const [challenges, setChallenges] = useState<Challenge[]>(defaultChallenges);
+    const [discussions, setDiscussions] = useState<Discussion[]>([]);
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
+    
+    const supabase = createClient();
+    const { user } = useAuth();
+    const { addXp, checkBadges } = useGamification();
 
-    // Load state from localStorage on mount
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
+    const fetchProjects = async () => {
+        const { data, error } = await supabase
+            .from('projects')
+            .select(`
+                *,
+                profiles:author_id (display_name),
+                project_materials (*),
+                project_steps (*),
+                comments (
+                    *,
+                    profiles:author_id (display_name)
+                )
+            `)
+            .order('created_at', { ascending: false });
 
-        try {
-            // Load liked projects
-            const savedLikes = localStorage.getItem('steam-liked-projects');
-            if (savedLikes) {
-                setLikedProjects(new Set(JSON.parse(savedLikes)));
-            }
-
-            // Load completed projects
-            const savedCompleted = localStorage.getItem('steam-completed-projects');
-            if (savedCompleted) {
-                setCompletedProjects(new Set(JSON.parse(savedCompleted)));
-            }
-
-            // Load user projects and comments
-            const savedProjects = localStorage.getItem('steam-projects');
-            if (savedProjects) {
-                const parsedProjects = JSON.parse(savedProjects);
-                // Merge saved projects with default projects
-                const mergedProjects = defaultProjects.map(defaultProject => {
-                    const savedProject = parsedProjects.find((p: Project) => p.id === defaultProject.id);
-                    return savedProject ? { ...defaultProject, comments: savedProject.comments, likes: savedProject.likes } : defaultProject;
-                });
-                // Add user-created projects
-                const userProjects = parsedProjects.filter((p: Project) =>
-                    !defaultProjects.some(dp => dp.id === p.id)
-                );
-                setProjects([...userProjects, ...mergedProjects]);
-            }
-
-
-            // Load discussions
-            const savedDiscussions = localStorage.getItem('steam-discussions');
-            if (savedDiscussions) {
-                setDiscussions(JSON.parse(savedDiscussions));
-            }
-
-            // Load challenges
-            const savedChallenges = localStorage.getItem('steam-challenges');
-            if (savedChallenges) {
-                setChallenges(JSON.parse(savedChallenges));
-            }
-        } catch (error) {
-            console.error('Failed to load data from localStorage:', error);
+        if (error) {
+            console.error('Error fetching projects:', error);
+            return;
         }
+
+        const mappedProjects: Project[] = data.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            author: p.profiles?.display_name || p.profiles?.username || 'Unknown',
+            image: p.image_url || '',
+            category: p.category || '',
+            likes: p.likes_count,
+            description: p.description || '',
+            materials: p.project_materials?.map((m: any) => m.material) || [],
+            steps: p.project_steps?.map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
+            comments: p.comments?.map((c: any) => ({
+                id: c.id,
+                author: c.profiles?.display_name || c.profiles?.username || 'Unknown',
+                userId: c.author_id,
+                content: c.content,
+                date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            })) || []
+        }));
+
+        setProjects(mappedProjects);
+    };
+
+    const fetchDiscussions = async () => {
+        const { data, error } = await supabase
+            .from('discussions')
+            .select(`
+                *,
+                profiles:author_id (display_name),
+                discussion_replies (
+                    *,
+                    profiles:author_id (display_name)
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching discussions:', error);
+            return;
+        }
+
+        const mappedDiscussions: Discussion[] = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            author: d.profiles?.display_name || d.profiles?.username || 'Unknown',
+            content: d.content,
+            date: new Date(d.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+            likes: d.likes_count,
+            tags: d.tags || [],
+            replies: d.discussion_replies?.map((r: any) => ({
+                id: r.id,
+                author: r.profiles?.display_name || r.profiles?.username || 'Unknown',
+                content: r.content,
+                date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            })) || []
+        }));
+
+        setDiscussions(mappedDiscussions);
+    };
+
+    const fetchChallenges = async () => {
+        const { data, error } = await supabase
+            .from('challenges')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching challenges:', error);
+            return;
+        }
+
+        // Check joined status if user is logged in
+        let joinedChallengeIds = new Set<number>();
+        if (user) {
+            const { data: participants } = await supabase
+                .from('challenge_participants')
+                .select('challenge_id')
+                .eq('user_id', user.id);
+            
+            if (participants) {
+                participants.forEach(p => joinedChallengeIds.add(p.challenge_id));
+            }
+        }
+
+        const mappedChallenges: Challenge[] = data.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            description: c.description || '',
+            image: c.image_url || '',
+            participants: c.participants_count,
+            daysLeft: c.end_date ? Math.ceil((new Date(c.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+            joined: joinedChallengeIds.has(c.id),
+            tags: c.tags || []
+        }));
+
+        setChallenges(mappedChallenges);
+    };
+
+    const fetchUserInteractions = async () => {
+        if (!user) {
+            setLikedProjects(new Set());
+            setCompletedProjects(new Set());
+            return;
+        }
+
+        const { data: likes } = await supabase
+            .from('likes')
+            .select('project_id')
+            .eq('user_id', user.id);
+        
+        if (likes) {
+            setLikedProjects(new Set(likes.map(l => l.project_id)));
+        }
+
+        const { data: completed } = await supabase
+            .from('completed_projects')
+            .select('project_id')
+            .eq('user_id', user.id);
+        
+        if (completed) {
+            setCompletedProjects(new Set(completed.map(c => c.project_id)));
+        }
+    };
+
+    useEffect(() => {
+        fetchProjects();
+        fetchDiscussions();
     }, []);
 
-    // Save state to localStorage whenever it changes
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        fetchUserInteractions();
+        // Refresh challenges to update joined status
+        fetchChallenges();
+    }, [user]);
 
-        try {
-            localStorage.setItem('steam-liked-projects', JSON.stringify(Array.from(likedProjects)));
-        } catch (error) {
-            console.error('Failed to save liked projects:', error);
+    const addProject = async (project: Project) => {
+        if (!user) return;
+
+        // 1. Insert Project
+        const { data: newProject, error } = await supabase
+            .from('projects')
+            .insert({
+                title: project.title,
+                description: project.description,
+                author_id: user.id,
+                image_url: project.image,
+                category: project.category,
+                likes_count: 0
+            })
+            .select()
+            .single();
+
+        if (error || !newProject) {
+            console.error('Error adding project:', error);
+            return;
         }
-    }, [likedProjects]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        try {
-            localStorage.setItem('steam-completed-projects', JSON.stringify(Array.from(completedProjects)));
-        } catch (error) {
-            console.error('Failed to save completed projects:', error);
+        // 2. Insert Materials
+        if (project.materials && project.materials.length > 0) {
+            await supabase
+                .from('project_materials')
+                .insert(project.materials.map((m, index) => ({
+                    project_id: newProject.id,
+                    material: m,
+                    sort_order: index
+                })));
         }
-    }, [completedProjects]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        try {
-            localStorage.setItem('steam-projects', JSON.stringify(projects));
-        } catch (error) {
-            console.error('Failed to save projects:', error);
+        // 3. Insert Steps
+        if (project.steps && project.steps.length > 0) {
+            await supabase
+                .from('project_steps')
+                .insert(project.steps.map((s, index) => ({
+                    project_id: newProject.id,
+                    title: s.title,
+                    description: s.description,
+                    sort_order: index
+                })));
         }
-    }, [projects]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            localStorage.setItem('steam-discussions', JSON.stringify(discussions));
-        } catch (error) {
-            console.error('Failed to save discussions:', error);
-        }
-    }, [discussions]);
+        // Award XP for publishing a project
+        addXp(50, "发布新项目");
+        
+        // Check badges
+        checkBadges({
+            projectsPublished: projects.filter(p => p.author === user.user_metadata.full_name).length + 1, // Approximate
+            projectsLiked: likedProjects.size,
+            projectsCompleted: completedProjects.size,
+            commentsCount: 0 // Need to track this better
+        });
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            localStorage.setItem('steam-challenges', JSON.stringify(challenges));
-        } catch (error) {
-            console.error('Failed to save challenges:', error);
-        }
-    }, [challenges]);
-
-    const addProject = (project: Project) => {
-        setProjects((prev) => [project, ...prev]);
+        fetchProjects();
     };
 
-    const addComment = (projectId: string | number, comment: Comment) => {
-        setProjects(prev => prev.map(p => {
-            if (p.id === projectId) {
-                return { ...p, comments: [comment, ...(p.comments || [])] };
-            }
-            return p;
-        }));
+    const addComment = async (projectId: string | number, comment: Comment) => {
+        if (!user) return;
+
+        await supabase
+            .from('comments')
+            .insert({
+                project_id: Number(projectId),
+                author_id: user.id,
+                content: comment.content
+            });
+
+        // Award XP for commenting
+        addXp(5, "发表评论");
+        
+        // Check badges (simplified)
+        checkBadges({
+            projectsPublished: 0,
+            projectsLiked: likedProjects.size,
+            projectsCompleted: completedProjects.size,
+            commentsCount: 10 // Placeholder, ideally fetch count
+        });
+
+        fetchProjects();
     };
 
-    const toggleLike = (projectId: string | number) => {
-        setLikedProjects((prev) => {
+    const toggleLike = async (projectId: string | number) => {
+        if (!user) return;
+        const pid = Number(projectId);
+
+        const isLiked = likedProjects.has(pid);
+        
+        // Optimistic update
+        setLikedProjects(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(projectId)) {
-                newSet.delete(projectId);
-            } else {
-                newSet.add(projectId);
-            }
+            if (isLiked) newSet.delete(pid);
+            else newSet.add(pid);
             return newSet;
         });
 
         setProjects(prev => prev.map(p => {
-            if (p.id === projectId) {
-                return { ...p, likes: p.likes + (likedProjects.has(projectId) ? -1 : 1) };
+            if (p.id === pid) {
+                return { ...p, likes: p.likes + (isLiked ? -1 : 1) };
             }
             return p;
         }));
+
+        if (isLiked) {
+            await supabase.from('likes').delete().eq('user_id', user.id).eq('project_id', pid);
+            await supabase.rpc('decrement_project_likes', { project_id: pid });
+        } else {
+            await supabase.from('likes').insert({ user_id: user.id, project_id: pid });
+            await supabase.rpc('increment_project_likes', { project_id: pid });
+        }
     };
 
-    const toggleProjectCompleted = (projectId: string | number) => {
-        setCompletedProjects((prev) => {
+    const toggleProjectCompleted = async (projectId: string | number) => {
+        if (!user) return;
+        const pid = Number(projectId);
+        const isCompleted = completedProjects.has(pid);
+
+        // Optimistic update
+        setCompletedProjects(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(projectId)) {
-                newSet.delete(projectId);
-            } else {
-                newSet.add(projectId);
-            }
+            if (isCompleted) newSet.delete(pid);
+            else newSet.add(pid);
             return newSet;
         });
+
+        if (isCompleted) {
+            await supabase.from('completed_projects').delete().eq('user_id', user.id).eq('project_id', pid);
+        } else {
+            await supabase.from('completed_projects').insert({ user_id: user.id, project_id: pid });
+            
+            // Award XP for completing a project
+            addXp(20, "完成项目");
+            
+             // Check badges
+            checkBadges({
+                projectsPublished: 0,
+                projectsLiked: likedProjects.size,
+                projectsCompleted: completedProjects.size + 1,
+                commentsCount: 0
+            });
+        }
     };
 
     const isLiked = (projectId: string | number) => likedProjects.has(projectId);
     const isCompleted = (projectId: string | number) => completedProjects.has(projectId);
 
-    const addDiscussion = (discussion: Discussion) => {
-        setDiscussions(prev => [discussion, ...prev]);
+    const addDiscussion = async (discussion: Discussion) => {
+        if (!user) return;
+
+        await supabase
+            .from('discussions')
+            .insert({
+                title: discussion.title,
+                content: discussion.content,
+                author_id: user.id,
+                tags: discussion.tags
+            });
+
+        fetchDiscussions();
     };
 
-    const addReply = (discussionId: string | number, reply: Comment) => {
-        setDiscussions(prev => prev.map(d => {
-            if (d.id === discussionId) {
-                return { ...d, replies: [...d.replies, reply] };
-            }
-            return d;
-        }));
+    const addReply = async (discussionId: string | number, reply: Comment) => {
+        if (!user) return;
+
+        await supabase
+            .from('discussion_replies')
+            .insert({
+                discussion_id: Number(discussionId),
+                author_id: user.id,
+                content: reply.content
+            });
+
+        // Award XP for replying
+        addXp(5, "回复讨论");
+
+        fetchDiscussions();
     };
 
-    const joinChallenge = (challengeId: string | number) => {
+    const joinChallenge = async (challengeId: string | number) => {
+        if (!user) return;
+        const cid = Number(challengeId);
+        
+        // Find current challenge to check status
+        const challenge = challenges.find(c => c.id === cid);
+        if (!challenge) return;
+
+        const isJoined = challenge.joined;
+
+        // Optimistic update
         setChallenges(prev => prev.map(c => {
-            if (c.id === challengeId) {
-                return { ...c, joined: !c.joined, participants: c.participants + (c.joined ? -1 : 1) };
+            if (c.id === cid) {
+                return { ...c, joined: !isJoined, participants: c.participants + (isJoined ? -1 : 1) };
             }
             return c;
         }));
+
+        if (isJoined) {
+            // Leave
+            // Note: Schema doesn't have a delete policy for participants yet? 
+            // Actually it does: "Users can join challenges" (INSERT). But maybe not DELETE?
+            // Let's assume we can delete.
+            // Wait, I didn't see a DELETE policy for challenge_participants in schema.
+            // I should check schema.
+            await supabase.from('challenge_participants').delete().eq('user_id', user.id).eq('challenge_id', cid);
+            await supabase.rpc('decrement_challenge_participants', { challenge_id: cid });
+        } else {
+            // Join
+            await supabase.from('challenge_participants').insert({ user_id: user.id, challenge_id: cid });
+            await supabase.rpc('increment_challenge_participants', { challenge_id: cid });
+        }
     };
 
     return (

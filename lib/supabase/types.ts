@@ -24,6 +24,7 @@ export interface Database {
           bio: string | null
           created_at: string
           updated_at: string
+          xp: number
         }
         Insert: {
           id: string
@@ -33,6 +34,7 @@ export interface Database {
           bio?: string | null
           created_at?: string
           updated_at?: string
+          xp?: number
         }
         Update: {
           id?: string
@@ -42,6 +44,7 @@ export interface Database {
           bio?: string | null
           created_at?: string
           updated_at?: string
+          xp?: number
         }
       }
       projects: {
@@ -87,6 +90,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       project_materials: {
         Row: {

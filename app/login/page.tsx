@@ -36,15 +36,22 @@ export default function LoginPage() {
         router.push('/')
         router.refresh()
       } else if (view === 'sign_up') {
+        // Auto-generate username (Account ID)
+        const username = `user_${Math.random().toString(36).slice(2, 10)}`;
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              username: username,
+              full_name: email.split('@')[0], // Default display name from email
+            }
           },
         })
         if (error) throw error
-        setMessage('注册成功！请检查你的邮箱以确认账号（如果开启了邮箱验证）。')
+        setMessage('注册成功！请检查你的邮箱以确认账号。')
         // 如果没有开启邮箱验证，可以直接登录，这里视配置而定
         // 为了用户体验，注册后可以尝试直接登录或提示
         const { data: { session } } = await supabase.auth.getSession()
