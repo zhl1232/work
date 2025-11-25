@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { title, description, category, materials, steps, image_url } = body
     
-    // 创建项目
+    // 创建项目（默认状态为待审核）
     const { data: project, error: projectError } = await supabase
       .from('projects')
       // @ts-expect-error - Supabase type inference issue
@@ -84,6 +84,7 @@ export async function POST(request: Request) {
         category,
         image_url,
         author_id: user.id,
+        status: 'pending', // 新项目默认为待审核状态
       })
       .select()
       .single()

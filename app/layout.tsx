@@ -11,7 +11,7 @@ import { GlobalSearch } from "@/components/features/global-search";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserButton } from "@/components/user-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { MainNav } from "@/components/main-nav";
 
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -47,14 +47,8 @@ export default function RootLayout({
                                                     <span className="hidden font-bold sm:inline-block text-lg">STEAM 探索</span>
                                                 </Link>
                                                 {/* 主导航 */}
-                                                <nav className="flex items-center gap-6 text-sm font-medium">
-                                                    <Link href="/explore" className="transition-colors hover:text-primary text-foreground/60 hover:bg-accent/50 px-3 py-2 rounded-md">发现</Link>
-                                                    <Link href="/community" className="transition-colors hover:text-primary text-foreground/60 hover:bg-accent/50 px-3 py-2 rounded-md">社区</Link>
-                                                    <Link href="/share" className="transition-colors hover:text-primary text-foreground/60 hover:bg-accent/50 px-3 py-2 rounded-md">分享</Link>
-                                                    <Link href="/favorites" className="transition-colors hover:text-primary text-foreground/60 hover:bg-accent/50 px-3 py-2 rounded-md">收藏</Link>
-                                                    <Link href="/profile" className="transition-colors hover:text-primary text-foreground/60 hover:bg-accent/50 px-3 py-2 rounded-md">我的</Link>
-                                                    <ThemeToggle />
-                                                </nav>
+                                                {/* 主导航 */}
+                                                <MainNav />
                                             </div>
                                             {/* 右侧搜索和通知 */}
                                             <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">

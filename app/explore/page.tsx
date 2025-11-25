@@ -35,7 +35,8 @@ function ExploreContent() {
     const initialQuery = searchParams.get("q") || "";
 
     const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [selectedCategory, setSelectedCategory] = useState("全部");
+    const initialCategory = searchParams.get("category") || "全部";
+    const [selectedCategory, setSelectedCategory] = useState(initialCategory);
     const [isLoading, setIsLoading] = useState(true);
     const [advancedFilters, setAdvancedFilters] = useState({
         difficulty: "all",

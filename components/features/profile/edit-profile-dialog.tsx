@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
+import { AvatarUpload } from "./avatar-upload"
 
 export function EditProfileDialog({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -83,7 +84,7 @@ export function EditProfileDialog({ children }: { children: React.ReactNode }) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>编辑资料</DialogTitle>
           <DialogDescription>
@@ -91,54 +92,43 @@ export function EditProfileDialog({ children }: { children: React.ReactNode }) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="username" className="text-right">
-                账号ID
-              </Label>
-              <Input
-                id="username"
-                value={username}
-                disabled
-                className="col-span-3 bg-muted"
-                placeholder="系统生成"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,200px] gap-6 py-4">
+            <div className="space-y-4">
+
+              <div className="grid gap-2">
+                <Label htmlFor="display_name">
+                  昵称
+                </Label>
+                <Input
+                  id="display_name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="显示的名称"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bio">
+                  简介
+                </Label>
+                <Input
+                  id="bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="一句话介绍自己"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="display_name" className="text-right">
-                昵称
-              </Label>
-              <Input
-                id="display_name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="col-span-3"
-                placeholder="显示的名称"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="bio" className="text-right">
-                简介
-              </Label>
-              <Input
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="col-span-3"
-                placeholder="一句话介绍自己"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="avatar" className="text-right">
-                头像链接
-              </Label>
-              <Input
-                id="avatar"
+
+            <div className="flex flex-col items-center justify-start pt-2">
+              <Label className="mb-4 text-muted-foreground">头像</Label>
+              <AvatarUpload
                 value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                className="col-span-3"
-                placeholder="https://..."
+                onChange={setAvatarUrl}
+                disabled={loading}
               />
+              <div className="mt-6 w-full text-center">
+                <span className="text-sm text-muted-foreground">账号ID： {username || "未设置"}</span>
+              </div>
             </div>
           </div>
           <DialogFooter>

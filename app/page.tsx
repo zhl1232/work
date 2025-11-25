@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, FlaskConical, Rocket, Palette, Calculator, Cpu } from "lucide-react";
+import { FlaskConical, Rocket, Palette, Calculator, Cpu } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -49,11 +48,21 @@ export default function Home() {
                     </p>
                 </div>
                 <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3">
-                    <CategoryCard icon={<FlaskConical className="h-10 w-10 text-blue-500" />} title="科学 Science" description="化学反应、生物观察、物理现象" delay={0.1} />
-                    <CategoryCard icon={<Cpu className="h-10 w-10 text-indigo-500" />} title="技术 Technology" description="编程、机器人、电子电路" delay={0.2} />
-                    <CategoryCard icon={<Rocket className="h-10 w-10 text-orange-500" />} title="工程 Engineering" description="结构搭建、机械装置、3D打印" delay={0.3} />
-                    <CategoryCard icon={<Palette className="h-10 w-10 text-pink-500" />} title="艺术 Arts" description="数字艺术、手工制作、创意设计" delay={0.4} />
-                    <CategoryCard icon={<Calculator className="h-10 w-10 text-green-500" />} title="数学 Mathematics" description="几何图形、逻辑谜题、数据可视化" delay={0.5} />
+                    <Link href="/explore?category=科学">
+                        <CategoryCard icon={<FlaskConical className="h-10 w-10 text-blue-500" />} title="科学" description="化学反应、生物观察、物理现象" delay={0.1} />
+                    </Link>
+                    <Link href="/explore?category=技术">
+                        <CategoryCard icon={<Cpu className="h-10 w-10 text-indigo-500" />} title="技术" description="编程、机器人、电子电路" delay={0.2} />
+                    </Link>
+                    <Link href="/explore?category=工程">
+                        <CategoryCard icon={<Rocket className="h-10 w-10 text-orange-500" />} title="工程" description="结构搭建、机械装置、3D打印" delay={0.3} />
+                    </Link>
+                    <Link href="/explore?category=艺术">
+                        <CategoryCard icon={<Palette className="h-10 w-10 text-pink-500" />} title="艺术" description="数字艺术、手工制作、创意设计" delay={0.4} />
+                    </Link>
+                    <Link href="/explore?category=数学">
+                        <CategoryCard icon={<Calculator className="h-10 w-10 text-green-500" />} title="数学" description="几何图形、逻辑谜题、数据可视化" delay={0.5} />
+                    </Link>
                 </div>
             </section>
         </div>

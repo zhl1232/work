@@ -2,12 +2,26 @@
 
 import { useAuth } from '@/context/auth-context'
 import { Button } from '@/components/ui/button'
-import { LogOut, User as UserIcon, Loader2 } from 'lucide-react'
+import { 
+  LogOut, 
+  User as UserIcon, 
+  Loader2,
+  LayoutDashboard
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function UserButton() {
-  const { user, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut, canReview } = useAuth()
   const router = useRouter()
 
   if (loading) {
@@ -33,32 +47,53 @@ export function UserButton() {
     router.push('/')
   }
 
+  const displayName = profile?.display_name || user.email || '用户'
+  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url
+
   return (
-    <div className="flex items-center gap-2">
-      <Link href="/profile">
-        <Button variant="ghost" size="icon" className="relative">
-          {user.user_metadata?.avatar_url ? (
-            <img
-              src={user.user_metadata.avatar_url}
-              alt="Avatar"
-              className="h-8 w-8 rounded-full"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center">
-              <UserIcon className="h-4 w-4 text-primary-foreground" />
-            </div>
-          )}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={avatarUrl || ''} alt={displayName} />
+            <AvatarFallback className="bg-primary/10">
+              <UserIcon className="h-4 w-4" />
+            </AvatarFallback>
+          </Avatar>
         </Button>
-      </Link>
-      
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleSignOut}
-        title="退出登录"
-      >
-        <LogOut className="h-5 w-5" />
-      </Button>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/profile" className="cursor-pointer">
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>个人资料</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        {canReview && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin" className="cursor-pointer">
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              <span>管理后台</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>退出登录</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

@@ -1,12 +1,13 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 
 /**
  * 服务端 Supabase 客户端
  * 用于 Server Components 和 API Routes
  */
-export const createClient = () => {
+export const createClient = (): SupabaseClient<Database> => {
   const cookieStore = cookies()
 
   return createServerClient<Database>(

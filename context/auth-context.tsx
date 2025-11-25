@@ -4,28 +4,63 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 
-interface AuthContextType {
-  user: User | null
-  loading: boolean
-  signOut: () => Promise<void>
+type UserRole = 'user' | 'moderator' | 'admin'
+
+interface Profile {
+  id: string
+  role: UserRole
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  signOut: async () => {},
-})
+interface AuthContextType {
+  user: User | null
+  profile: Profile | null
+  loading: boolean
+  isAdmin: boolean
+  isModerator: boolean
+  canReview: boolean
+  canDeleteComments: boolean
+  canManageTags: boolean
+  signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, role, username, display_name, avatar_url')
+      .eq('id', userId)
+      .single()
+    
+    return data as Profile | null
+  }
+
+  const refreshProfile = async () => {
+    if (user) {
+      const profileData = await fetchProfile(user.id)
+      setProfile(profileData)
+    }
+  }
 
   useEffect(() => {
     // 获取当前登录用户
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      if (user) {
+        const profileData = await fetchProfile(user.id)
+        setProfile(profileData)
+      }
       setLoading(false)
     }
 
@@ -35,6 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null)
+        if (session?.user) {
+          const profileData = await fetchProfile(session.user.id)
+          setProfile(profileData)
+        } else {
+          setProfile(null)
+        }
         setLoading(false)
       }
     )
@@ -47,10 +88,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setProfile(null)
   }
 
+  const isAdmin = profile?.role === 'admin'
+  const isModerator = profile?.role === 'moderator'
+  const canReview = isAdmin || isModerator
+  const canDeleteComments = isAdmin || isModerator
+  const canManageTags = isAdmin || isModerator
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile,
+      loading, 
+      isAdmin,
+      isModerator,
+      canReview,
+      canDeleteComments,
+      canManageTags,
+      signOut,
+      refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   )
@@ -58,8 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }

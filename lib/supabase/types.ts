@@ -25,6 +25,7 @@ export interface Database {
           created_at: string
           updated_at: string
           xp: number
+          role: string
         }
         Insert: {
           id: string
@@ -35,6 +36,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           xp?: number
+          role?: string
         }
         Update: {
           id?: string
@@ -45,6 +47,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           xp?: number
+          role?: string
         }
       }
       projects: {
@@ -61,6 +64,8 @@ export interface Database {
           views_count: number
           created_at: string
           updated_at: string
+          status: string
+          rejection_reason: string | null
         }
         Insert: {
           id?: number
@@ -75,6 +80,8 @@ export interface Database {
           views_count?: number
           created_at?: string
           updated_at?: string
+          status?: string
+          rejection_reason?: string | null
         }
         Update: {
           id?: number
@@ -89,6 +96,8 @@ export interface Database {
           views_count?: number
           created_at?: string
           updated_at?: string
+          status?: string
+          rejection_reason?: string | null
         }
         Relationships: []
       }
@@ -339,6 +348,30 @@ export interface Database {
           unlocked_at?: string
         }
       }
+      tags: {
+        Row: {
+          id: number
+          name: string
+          category: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          category?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          category?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -362,6 +395,14 @@ export interface Database {
       }
       decrement_challenge_participants: {
         Args: { challenge_id: number }
+        Returns: void
+      }
+      approve_project: {
+        Args: { project_id: number }
+        Returns: void
+      }
+      reject_project: {
+        Args: { project_id: number; reason: string }
         Returns: void
       }
     }
