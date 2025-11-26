@@ -37,7 +37,7 @@ export async function POST(
       // 调用批准函数
       const { error } = await supabase.rpc('approve_project', {
         project_id: projectId
-      } as any)
+      })
       
       if (error) {
         throw error
@@ -51,8 +51,8 @@ export async function POST(
       // 调用拒绝函数
       const { error } = await supabase.rpc('reject_project', {
         project_id: projectId,
-        reason: rejection_reason
-      } as any)
+        reason: rejection_reason || ''
+      })
       
       if (error) {
         throw error

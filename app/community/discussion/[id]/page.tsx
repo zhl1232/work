@@ -3,12 +3,15 @@
 import { useProjects, Comment } from "@/context/project-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Heart, Tag, ArrowLeft, User, Calendar } from "lucide-react";
+import { MessageSquare, Heart, Tag, ArrowLeft, User, Calendar, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
-    const { discussions, addReply, toggleLike } = useProjects(); // Note: toggleLike for discussions might need to be added to context if not present, or we reuse the project one if generic. Wait, context only has toggleLike for projects. I should check context again. 
+    const { discussions, addReply, deleteReply, isLoading } = useProjects();
+    const { user, profile } = useAuth(); 
     // Checking context... context has `addReply` but `toggleLike` takes `projectId`. 
     // The current context definition for `toggleLike` is `(projectId: string | number) => void`.
     // It seems I might need to update context to support liking discussions, or just handle it locally for now/mock it, or update context.
@@ -35,6 +38,21 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
 
     // Find discussion. The ID in URL is string, but in data it might be number.
     const discussion = discussions.find(d => d.id.toString() === id.toString());
+
+    if (isLoading) {
+        return (
+            <div className="container mx-auto py-12 max-w-4xl">
+                <div className="space-y-8">
+                    <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+                    <div className="bg-card border rounded-xl p-8 shadow-sm">
+                        <div className="h-6 w-48 bg-muted animate-pulse rounded mb-4" />
+                        <div className="h-10 w-3/4 bg-muted animate-pulse rounded mb-4" />
+                        <div className="h-6 w-full bg-muted animate-pulse rounded" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (!discussion) {
         return (
@@ -111,14 +129,25 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
                         <div key={reply.id} className="bg-muted/30 rounded-lg p-6 border">
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-full bg-background border flex items-center justify-center">
-                                        <span className="text-xs font-bold">{reply.author[0]}</span>
-                                    </div>
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={reply.avatar || ""} />
+                                        <AvatarFallback>{reply.author[0]}</AvatarFallback>
+                                    </Avatar>
                                     <div>
                                         <span className="font-semibold block text-sm">{reply.author}</span>
                                         <span className="text-xs text-muted-foreground">{reply.date}</span>
                                     </div>
                                 </div>
+                                {(user?.id === reply.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                        onClick={() => deleteReply(reply.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                )}
                             </div>
                             <p className="text-sm pl-11">{reply.content}</p>
                         </div>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 interface Project {
   id: number
@@ -122,11 +123,14 @@ export function ProjectReviewCard({ project, onReview }: ProjectReviewCardProps)
       </CardHeader>
       <CardContent className="space-y-4">
         {project.image_url && (
-          <img
-            src={project.image_url}
-            alt={project.title}
-            className="w-full h-48 object-cover rounded-md"
-          />
+          <div className="relative w-full h-48">
+            <Image
+              src={project.image_url}
+              alt={project.title}
+              fill
+              className="object-cover rounded-md"
+            />
+          </div>
         )}
         <p className="text-sm text-muted-foreground">{project.description}</p>
         

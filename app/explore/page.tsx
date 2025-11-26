@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useProjects } from "@/context/project-context";
 import { ProjectCard } from "@/components/features/project-card";
 import { ProjectCardSkeleton } from "@/components/ui/loading-skeleton";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { AdvancedSearch } from "@/components/features/advanced-search";
@@ -30,25 +30,18 @@ const categories = ["全部", "科学", "技术", "工程", "艺术", "数学", 
 import { Suspense } from "react";
 
 function ExploreContent() {
-    const { projects } = useProjects();
+    const { projects, isLoading } = useProjects();
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get("q") || "";
 
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const initialCategory = searchParams.get("category") || "全部";
     const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-    const [isLoading, setIsLoading] = useState(true);
     const [advancedFilters, setAdvancedFilters] = useState({
         difficulty: "all",
         duration: [0, 120],
         materials: [] as string[]
     });
-
-    // Simulate loading
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 1000);
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleSearch = (query: string, filters: any) => {
         setSearchQuery(query);

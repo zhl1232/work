@@ -266,7 +266,7 @@ export default function MigratePage() {
         <div className="rounded-lg border bg-muted/50 p-6">
           <h3 className="font-medium mb-2">📝 使用提示</h3>
           <ul className="text-sm text-muted-foreground space-y-2 ml-4 list-disc">
-            <li>首次使用请点击 "一键迁移全部" 按钮</li>
+            <li>首次使用请点击 &quot;一键迁移全部&quot; 按钮</li>
             <li>迁移会将示例数据插入到 Supabase 数据库</li>
             <li>如果数据已存在，可能会报错（这是正常的）</li>
             <li>迁移完成后可以在 Supabase Table Editor 中查看数据</li>

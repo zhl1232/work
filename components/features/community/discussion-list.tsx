@@ -4,10 +4,12 @@ import { useProjects, Discussion } from "@/context/project-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Heart, Tag } from "lucide-react";
+import { MessageSquare, Heart, Tag, Trash2 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 export function DiscussionList() {
-    const { discussions, addDiscussion } = useProjects();
+    const { discussions, addDiscussion, deleteDiscussion } = useProjects();
+    const { user, profile } = useAuth();
     const [isCreating, setIsCreating] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -108,6 +110,20 @@ export function DiscussionList() {
                                 <Heart className="h-4 w-4" />
                                 {discussion.likes} 赞
                             </Button>
+                            {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-auto p-0 hover:bg-transparent hover:text-destructive ml-auto relative z-20"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        deleteDiscussion(discussion.id);
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 ))}

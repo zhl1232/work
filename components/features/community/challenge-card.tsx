@@ -1,5 +1,6 @@
 import { Challenge, useProjects } from "@/context/project-context";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Users, Clock, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,10 +16,11 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         <div className="group relative overflow-hidden rounded-xl border bg-white/70 dark:bg-gray-800/70 backdrop-blur-md text-card-foreground shadow-sm transition-all hover:shadow-lg hover:scale-105 transform">
             <Link href={`/community/challenge/${challenge.id}`} className="block">
                 <div className="aspect-video w-full overflow-hidden relative">
-                    <img
+                    <Image
                         src={challenge.image}
                         alt={challenge.title}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm">
                         <Clock className="h-3 w-3" />

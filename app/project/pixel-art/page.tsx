@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { PixelEditor } from "@/components/features/pixel-editor";
@@ -54,7 +54,7 @@ export default function PixelArtPage() {
                             1. 构思你的图案轮廓。<br />
                             2. 用黑色或深色勾勒线条。<br />
                             3. 填充颜色，注意光影的变化。<br />
-                            4. 善用"撤销"功能不断修正。
+                            4. 善用&quot;撤销&quot;功能不断修正。
                         </p>
                     </div>
                     <div className="p-6 rounded-xl border bg-card">

@@ -3,9 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth, handleApiError } from '@/lib/api/auth'
 
 /**
- * DELETE /api/comments/[id]
- * 删除评论
- * 用户可以删除自己的评论,管理员/版主可以删除任何评论
+ * DELETE /api/replies/[id]
+ * 删除讨论回复
+ * 用户可以删除自己的回复,管理员/版主可以删除任何回复
  * 权限由 RLS 策略控制
  */
 export async function DELETE(
@@ -17,23 +17,19 @@ export async function DELETE(
   try {
     // 检查用户认证
     await requireAuth(supabase)
-    const commentId = parseInt(params.id)
+    const replyId = parseInt(params.id)
     
     // 直接执行删除,RLS 策略会自动检查权限
-    // 策略: "Authors and moderators can delete comments"
-    // - 如果是作者: auth.uid() = author_id 通过
-    // - 如果是管理员/版主: is_moderator_or_admin() 通过
-    // - 否则: 删除将被 RLS 拒绝
+    // 策略会检查是否为作者或管理员/版主
     const { error } = await supabase
-      .from('comments')
+      .from('discussion_replies')
       .delete()
-      .eq('id', commentId)
+      .eq('id', replyId)
     
     if (error) {
-      // 如果 RLS 策略拒绝,error.code 通常是权限相关错误
       if (error.code === 'PGRST301' || error.message.includes('permission')) {
         return NextResponse.json(
-          { error: 'You do not have permission to delete this comment' },
+          { error: 'You do not have permission to delete this reply' },
           { status: 403 }
         )
       }
@@ -41,7 +37,7 @@ export async function DELETE(
     }
     
     return NextResponse.json({ 
-      message: 'Comment deleted successfully' 
+      message: 'Reply deleted successfully' 
     })
   } catch (error) {
     return handleApiError(error)

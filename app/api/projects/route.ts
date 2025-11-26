@@ -10,62 +10,6 @@ import {
 
 const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as const
 
-/**
- * GET /api/projects
- * 获取项目列表
- * 支持参数：
- * - category: 分类筛选
- * - search: 搜索关键词
- */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const category = searchParams.get('category')
-  const search = searchParams.get('search')
-  
-  const supabase = createClient()
-  
-  try {
-    // 构建查询
-    let query = supabase
-      .from('projects')
-      .select(`
-        *,
-        profiles:author_id (
-          username,
-          display_name,
-          avatar_url
-        ),
-        project_materials (*),
-        project_steps (*)
-      `)
-      .order('created_at', { ascending: false })
-    
-    // 应用筛选
-    if (category && category !== '全部') {
-      query = query.eq('category', category)
-    }
-    
-    if (search) {
-      // 清理搜索输入
-      const sanitizedSearch = sanitizeSearch(search)
-      if (sanitizedSearch) {
-        query = query.or(`title.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`)
-      }
-    }
-    
-    const { data, error } = await query
-    
-    if (error) {
-      throw error
-    }
-    
-    return NextResponse.json(data)
-  } catch (error) {
-    return handleApiError(error)
-  }
-}
-
-/**
  * POST /api/projects
  * 创建新项目
  * 需要认证
@@ -102,14 +46,13 @@ export async function POST(request: Request) {
     // 创建项目（默认状态为待审核）
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      // @ts-expect-error - Supabase type inference issue
       .insert({
         title,
         description,
         category,
         image_url,
         author_id: user.id,
-        status: 'pending', // 新项目默认为待审核状态
+        status: 'pending' as const, // 新项目默认为待审核状态
       })
       .select()
       .single()
@@ -119,13 +62,12 @@ export async function POST(request: Request) {
     }
     
     // 添加材料
-    if (materials.length > 0) {
+    if (materials.length > 0 && project) {
       const { error: materialsError } = await supabase
         .from('project_materials')
-        // @ts-expect-error - Supabase type inference issue with insert
         .insert(
           materials.map((material: string, index: number) => ({
-            project_id: (project as any).id,
+            project_id: project.id,
             material,
             sort_order: index,
           }))
@@ -140,13 +82,12 @@ export async function POST(request: Request) {
     }
     
     // 添加步骤
-    if (steps.length > 0) {
+    if (steps.length > 0 && project) {
       const { error: stepsError } = await supabase
         .from('project_steps')
-        // @ts-expect-error - Supabase type inference issue with insert
         .insert(
           steps.map((step: { title: string; description: string }, index: number) => ({
-            project_id: (project as any).id,
+            project_id: project.id,
             title: step.title,
             description: step.description,
             sort_order: index,

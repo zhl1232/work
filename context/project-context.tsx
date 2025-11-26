@@ -9,6 +9,7 @@ export type Comment = {
     id: string | number;
     author: string;
     userId?: string;
+    avatar?: string;
     content: string;
     date: string;
 };
@@ -64,6 +65,10 @@ type ProjectContextType = {
     addDiscussion: (discussion: Discussion) => void;
     addReply: (discussionId: string | number, reply: Comment) => void;
     joinChallenge: (challengeId: string | number) => void;
+    deleteComment: (commentId: string | number) => Promise<void>;
+    deleteReply: (replyId: string | number) => Promise<void>;
+    deleteDiscussion: (discussionId: string | number) => Promise<void>;
+    isLoading: boolean;
 };
 
 
@@ -76,6 +81,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [completedProjects, setCompletedProjects] = useState<Set<string | number>>(new Set());
     const [discussions, setDiscussions] = useState<Discussion[]>([]);
     const [challenges, setChallenges] = useState<Challenge[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const supabase = createClient();
     const { user } = useAuth();
@@ -91,9 +97,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 project_steps (*),
                 comments (
                     *,
-                    profiles:author_id (display_name)
+                    profiles:author_id (display_name, avatar_url)
                 )
             `)
+            .order('created_at', { ascending: false, foreignTable: 'comments' })
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -116,6 +123,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 id: c.id,
                 author: c.profiles?.display_name || c.profiles?.username || 'Unknown',
                 userId: c.author_id,
+                avatar: c.profiles?.avatar_url,
                 content: c.content,
                 date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
             })) || []
@@ -132,9 +140,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 profiles:author_id (display_name),
                 discussion_replies (
                     *,
-                    profiles:author_id (display_name)
+                    profiles:author_id (display_name, avatar_url)
                 )
             `)
+            .order('created_at', { ascending: false, foreignTable: 'discussion_replies' })
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -153,6 +162,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             replies: d.discussion_replies?.map((r: any) => ({
                 id: r.id,
                 author: r.profiles?.display_name || r.profiles?.username || 'Unknown',
+                userId: r.author_id,
+                avatar: r.profiles?.avatar_url,
                 content: r.content,
                 date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
             })) || []
@@ -226,14 +237,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
-        fetchProjects();
-        fetchDiscussions();
+        const initData = async () => {
+            setIsLoading(true);
+            await Promise.all([
+                fetchProjects(),
+                fetchDiscussions()
+            ]);
+            setIsLoading(false);
+        };
+        initData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         fetchUserInteractions();
         // Refresh challenges to update joined status
         fetchChallenges();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const getUserStats = async () => {
@@ -469,6 +489,74 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const deleteComment = async (commentId: string | number) => {
+        if (!user) return;
+        const cid = Number(commentId);
+
+        // Optimistic update
+        setProjects(prev => prev.map(p => {
+            if (p.comments?.some(c => c.id === cid)) {
+                return {
+                    ...p,
+                    comments: p.comments.filter(c => c.id !== cid)
+                };
+            }
+            return p;
+        }));
+
+        const response = await fetch(`/api/comments/${cid}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            console.error('Error deleting comment:', await response.text());
+            // Revert optimistic update if needed, but for now let's just fetch
+            fetchProjects();
+        }
+    };
+
+    const deleteReply = async (replyId: string | number) => {
+        if (!user) return;
+        const rid = Number(replyId);
+
+        // Optimistic update
+        setDiscussions(prev => prev.map(d => {
+            if (d.replies?.some(r => r.id === rid)) {
+                return {
+                    ...d,
+                    replies: d.replies.filter(r => r.id !== rid)
+                };
+            }
+            return d;
+        }));
+
+        const response = await fetch(`/api/replies/${rid}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            console.error('Error deleting reply:', await response.text());
+            fetchDiscussions();
+        }
+    };
+
+    const deleteDiscussion = async (discussionId: string | number) => {
+        if (!user) return;
+        const did = Number(discussionId);
+
+        // Optimistic update
+        setDiscussions(prev => prev.filter(d => d.id !== did));
+
+        const response = await fetch(`/api/discussions/${did}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            console.error('Error deleting discussion:', await response.text());
+            fetchDiscussions();
+        }
+    };
+
     return (
         <ProjectContext.Provider value={{
             projects,
@@ -484,7 +572,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             challenges,
             addDiscussion,
             addReply,
-            joinChallenge
+            joinChallenge,
+            deleteComment,
+            deleteReply,
+            deleteDiscussion,
+            isLoading
         }}>
             {children}
         </ProjectContext.Provider>

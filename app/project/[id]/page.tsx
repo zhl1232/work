@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send } from "lucide-react";
+import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send, Trash2 } from "lucide-react";
 import { ConfettiButton } from "@/components/ui/confetti-button";
 import { useProjects } from "@/context/project-context";
 import { useAuth } from "@/context/auth-context";
@@ -9,12 +9,13 @@ import { useLoginPrompt } from "@/context/login-prompt-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/features/project-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-    const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted } = useProjects();
+    const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted, deleteComment, isLoading } = useProjects();
     const { user, profile } = useAuth();
     const { promptLogin } = useLoginPrompt();
     const router = useRouter();
@@ -35,6 +36,27 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }
 
     const project = projects.find((p) => String(p.id) === params.id);
+
+    if (isLoading) {
+        return (
+            <div className="container mx-auto py-8 max-w-4xl">
+                <div className="grid gap-8 md:grid-cols-[2fr_1fr]">
+                    <div className="space-y-8">
+                        <div className="aspect-video w-full bg-muted animate-pulse rounded-lg" />
+                        <div className="space-y-4">
+                            <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
+                            <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+                            <div className="h-32 w-full bg-muted animate-pulse rounded" />
+                        </div>
+                    </div>
+                    <div className="space-y-6">
+                        <div className="h-48 w-full bg-muted animate-pulse rounded-lg" />
+                        <div className="h-64 w-full bg-muted animate-pulse rounded-lg" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (!project) {
         return (
@@ -60,8 +82,9 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                 // 登录成功后自动发表评论
                 addComment(project.id, {
                     id: Date.now(),
-                    author: profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
-                    userId: user?.id,
+                    author: "我 (Me)",
+                    userId: undefined,
+                    avatar: undefined,
                     content: newComment,
                     date: new Date().toLocaleDateString(),
                 });
@@ -94,10 +117,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                     <ArrowLeft className="mr-2 h-4 w-4" /> 返回探索
                 </Link>
                 <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted relative group">
-                    <img
+                    <Image
                         src={project.image}
                         alt={project.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button size="icon" className="h-16 w-16 rounded-full bg-white/90 text-black hover:bg-white">
@@ -166,14 +190,27 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                         <div className="space-y-6">
                             {project.comments && project.comments.length > 0 ? (
                                 project.comments.map((comment) => (
-                                    <div key={comment.id} className="flex gap-4">
-                                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs">
-                                            {comment.author[0]}
-                                        </div>
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-semibold text-sm">{comment.author}</span>
-                                                <span className="text-xs text-muted-foreground">{comment.date}</span>
+                                    <div key={comment.id} className="flex gap-4 group">
+                                        <Avatar className="h-10 w-10 shrink-0">
+                                            <AvatarImage src={comment.avatar || ""} />
+                                            <AvatarFallback>{comment.author[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="space-y-1 flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-sm">{comment.author}</span>
+                                                    <span className="text-xs text-muted-foreground">{comment.date}</span>
+                                                </div>
+                                                {(user?.id === comment.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                                        onClick={() => deleteComment(comment.id)}
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                )}
                                             </div>
                                             <p className="text-sm text-foreground/80">{comment.content}</p>
                                         </div>

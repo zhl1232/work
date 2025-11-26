@@ -6,6 +6,7 @@ import { Users, Clock, Trophy, ArrowLeft, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export default function ChallengeDetailPage({ params }: { params: { id: string } }) {
     const { challenges, joinChallenge } = useProjects();
@@ -41,10 +42,11 @@ export default function ChallengeDetailPage({ params }: { params: { id: string }
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
-                        <img
+                        <Image
                             src={challenge.image}
                             alt={challenge.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                         />
                         <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 backdrop-blur-md">
                             <Clock className="h-4 w-4" />

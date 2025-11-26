@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 import { useAuth } from '@/context/auth-context'
 import { useProjects } from '@/context/project-context'
@@ -57,10 +58,12 @@ export default function ProfilePage() {
           {/* 头像 */}
           <div className="relative">
             {userAvatar ? (
-              <img
+              <Image
                 src={userAvatar}
                 alt={userName}
-                className="h-24 w-24 rounded-full border-4 border-background shadow-lg"
+                width={96}
+                height={96}
+                className="rounded-full border-4 border-background shadow-lg object-cover"
               />
             ) : (
               <div className="h-24 w-24 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-4xl font-bold text-primary-foreground shadow-lg">
