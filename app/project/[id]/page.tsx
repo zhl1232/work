@@ -5,6 +5,7 @@ import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send } from "lucide-reac
 import { ConfettiButton } from "@/components/ui/confetti-button";
 import { useProjects } from "@/context/project-context";
 import { useAuth } from "@/context/auth-context";
+import { useLoginPrompt } from "@/context/login-prompt-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
@@ -15,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
     const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted } = useProjects();
     const { user, profile } = useAuth();
+    const { promptLogin } = useLoginPrompt();
     const router = useRouter();
     const [newComment, setNewComment] = useState("");
 
@@ -51,6 +53,25 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const handleSubmitComment = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newComment.trim()) return;
+
+        // 检查登录状态
+        if (!user) {
+            promptLogin(() => {
+                // 登录成功后自动发表评论
+                addComment(project.id, {
+                    id: Date.now(),
+                    author: profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
+                    userId: user?.id,
+                    content: newComment,
+                    date: new Date().toLocaleDateString(),
+                });
+                setNewComment("");
+            }, {
+                title: '登录以发表评论',
+                description: '登录后即可参与讨论，分享你的想法'
+            });
+            return;
+        }
 
         addComment(project.id, {
             id: Date.now(),
@@ -175,7 +196,16 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                                     <Button
                                         variant={isProjectLiked ? "default" : "outline"}
                                         size="icon"
-                                        onClick={() => toggleLike(project.id)}
+                                        onClick={() => {
+                                            if (!user) {
+                                                promptLogin(() => toggleLike(project.id), {
+                                                    title: '登录以点赞项目',
+                                                    description: '登录后即可点赞并收藏喜欢的项目'
+                                                });
+                                                return;
+                                            }
+                                            toggleLike(project.id);
+                                        }}
                                         className={isProjectLiked ? "bg-red-500 hover:bg-red-600 text-white border-red-500" : ""}
                                     >
                                         <Heart className={`h-4 w-4 ${isProjectLiked ? "fill-current" : ""}`} />
@@ -189,7 +219,16 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                             <ConfettiButton
                                 className="w-full"
                                 isCompleted={isProjectCompleted}
-                                onClick={() => toggleProjectCompleted(project.id)}
+                                onClick={() => {
+                                    if (!user) {
+                                        promptLogin(() => toggleProjectCompleted(project.id), {
+                                            title: '登录以标记完成',
+                                            description: '登录后可记录你完成的项目，获得成就徽章'
+                                        });
+                                        return;
+                                    }
+                                    toggleProjectCompleted(project.id);
+                                }}
                             >
                                 我做过这个！(Mark as Done)
                             </ConfettiButton>

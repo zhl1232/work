@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import type { Profile } from '@/lib/types/database'
+import { requireRole, handleApiError } from '@/lib/api/auth'
 
 /**
  * DELETE /api/admin/tags/[id]
@@ -13,31 +13,10 @@ export async function DELETE(
 ) {
   const supabase = createClient()
   
-  // 检查用户是否登录
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-  
-  // 检查用户权限
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single() as { data: Pick<Profile, 'role'> | null }
-  
-  if (!profile || !['moderator', 'admin'].includes(profile.role)) {
-    return NextResponse.json(
-      { error: 'Permission denied: moderator or admin role required' },
-      { status: 403 }
-    )
-  }
-  
   try {
+    // 检查用户权限
+    await requireRole(supabase, ['moderator', 'admin'])
+    
     const tagId = parseInt(params.id)
     
     const { error } = await (supabase
@@ -52,11 +31,7 @@ export async function DELETE(
     return NextResponse.json({ 
       message: 'Tag deleted successfully' 
     })
-  } catch (error: any) {
-    console.error('Error deleting tag:', error)
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }

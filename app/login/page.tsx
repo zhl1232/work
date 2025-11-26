@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +10,6 @@ import Link from 'next/link'
 type AuthView = 'sign_in' | 'sign_up' | 'forgot_password'
 
 export default function LoginPage() {
-  const router = useRouter()
   const supabase = createClient()
   const [view, setView] = useState<AuthView>('sign_in')
   const [email, setEmail] = useState('')
@@ -33,11 +31,13 @@ export default function LoginPage() {
           password,
         })
         if (error) throw error
-        router.push('/')
-        router.refresh()
+        
+        // 登录成功，使用 window.location 确保完全刷新
+        window.location.href = '/'
+        return // 不需要 setLoading(false)，因为页面会刷新
       } else if (view === 'sign_up') {
         // Auto-generate username (Account ID)
-        const username = `user_${Math.random().toString(36).slice(2, 10)}`;
+        const username = `user_${Math.random().toString(36).slice(2, 10)}`
         
         const { error } = await supabase.auth.signUp({
           email,
@@ -52,12 +52,12 @@ export default function LoginPage() {
         })
         if (error) throw error
         setMessage('注册成功！请检查你的邮箱以确认账号。')
-        // 如果没有开启邮箱验证，可以直接登录，这里视配置而定
-        // 为了用户体验，注册后可以尝试直接登录或提示
+        
+        // 检查是否自动登录
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          router.push('/')
-          router.refresh()
+          window.location.href = '/'
+          return
         }
       } else if (view === 'forgot_password') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -67,7 +67,11 @@ export default function LoginPage() {
         setMessage('重置密码链接已发送到你的邮箱，请查收。')
       }
     } catch (error: any) {
-      console.error('Auth error:', error)
+      // 不要在生产环境暴露敏感信息
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Auth error:', error.message)
+      }
+      
       // 优化错误提示
       if (error.message === 'Invalid login credentials') {
         setError('邮箱或密码错误，请重试。')
@@ -174,6 +178,7 @@ export default function LoginPage() {
                     className="pl-10"
                     required
                     minLength={6}
+                    autoComplete={view === 'sign_in' ? 'current-password' : 'new-password'}
                   />
                 </div>
               </div>

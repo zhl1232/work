@@ -9,7 +9,6 @@ import {
   LayoutDashboard
 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +21,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function UserButton() {
   const { user, profile, loading, signOut, canReview } = useAuth()
-  const router = useRouter()
 
   if (loading) {
     return (
@@ -44,7 +42,6 @@ export function UserButton() {
 
   const handleSignOut = async () => {
     await signOut()
-    router.push('/')
   }
 
   const displayName = profile?.display_name || user.email || '用户'

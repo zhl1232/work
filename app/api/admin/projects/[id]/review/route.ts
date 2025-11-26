@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import type { Profile } from '@/lib/types/database'
+import { requireRole, handleApiError } from '@/lib/api/auth'
+import { validateEnum, validateOptionalString } from '@/lib/api/validation'
 
 /**
  * POST /api/admin/projects/[id]/review
@@ -13,40 +14,15 @@ export async function POST(
 ) {
   const supabase = createClient()
   
-  // 检查用户是否登录
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-  
-  // 检查用户权限
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single() as { data: Pick<Profile, 'role'> | null }
-  
-  if (!profile || !['moderator', 'admin'].includes(profile.role)) {
-    return NextResponse.json(
-      { error: 'Permission denied: moderator or admin role required' },
-      { status: 403 }
-    )
-  }
-  
   try {
-    const body = await request.json()
-    const { action, rejection_reason } = body as { action: string; rejection_reason?: string }
+    // 检查用户权限
+    await requireRole(supabase, ['moderator', 'admin'])
     
-    if (!['approve', 'reject'].includes(action)) {
-      return NextResponse.json(
-        { error: 'Invalid action. Must be "approve" or "reject"' },
-        { status: 400 }
-      )
-    }
+    const body = await request.json()
+    
+    // 验证输入
+    const action = validateEnum(body.action, 'Action', ['approve', 'reject'] as const)
+    const rejection_reason = validateOptionalString(body.rejection_reason, 'Rejection reason', 500)
     
     if (action === 'reject' && !rejection_reason) {
       return NextResponse.json(
@@ -87,11 +63,7 @@ export async function POST(
         status: 'rejected'
       })
     }
-  } catch (error: any) {
-    console.error('Error reviewing project:', error)
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }

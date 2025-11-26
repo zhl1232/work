@@ -86,9 +86,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+    try {
+      // 调用 Supabase 退出登录
+      await supabase.auth.signOut()
+      
+      // 清除所有 Supabase 相关的 localStorage 数据
+      if (typeof window !== 'undefined') {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key)
+          }
+        })
+      }
+      
+      // 清除状态
+      setUser(null)
+      setProfile(null)
+      
+      // 刷新页面以确保所有状态被清除
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // 即使出错也尝试清除本地状态
+      setUser(null)
+      setProfile(null)
+      window.location.href = '/'
+    }
   }
 
   const isAdmin = profile?.role === 'admin'
