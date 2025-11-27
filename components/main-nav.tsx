@@ -25,11 +25,6 @@ export function MainNav() {
             active: pathname === "/share",
         },
         {
-            href: "/favorites",
-            label: "收藏",
-            active: pathname === "/favorites",
-        },
-        {
             href: "/profile",
             label: "我的",
             active: pathname === "/profile",

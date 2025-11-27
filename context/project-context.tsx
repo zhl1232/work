@@ -6,6 +6,7 @@ import { callRpc } from "@/lib/supabase/rpc";
 import { useAuth } from "@/context/auth-context";
 import { useGamification } from "@/context/gamification-context";
 import { useNotifications } from "@/context/notification-context";
+import { mapProjectWithDetails, mapComment } from "@/lib/mappers/project";
 
 export type Comment = {
     id: string | number;
@@ -98,12 +99,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             .from('projects')
             .select(`
                 *,
-                profiles:author_id (display_name),
+                profiles:author_id (display_name, username),
                 project_materials (*),
                 project_steps (*),
                 comments (
                     *,
-                    profiles:author_id (display_name, avatar_url)
+                    profiles:author_id (display_name, username, avatar_url)
                 )
             `)
             .order('created_at', { ascending: false, foreignTable: 'comments' })
@@ -115,30 +116,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        const mappedProjects: Project[] = data.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            author: p.profiles?.display_name || p.profiles?.username || 'Unknown',
-            author_id: p.author_id, // Map author_id
-            image: p.image_url || '',
-            category: p.category || '',
-            likes: p.likes_count,
-            description: p.description || '',
-            materials: p.project_materials?.map((m: any) => m.material) || [],
-            steps: p.project_steps?.map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
-            comments: p.comments?.map((c: any) => ({
-                id: c.id,
-                author: c.profiles?.display_name || c.profiles?.username || 'Unknown',
-                userId: c.author_id,
-                avatar: c.profiles?.avatar_url,
-                content: c.content,
-                date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                parent_id: c.parent_id,
-                reply_to_user_id: c.reply_to_user_id,
-                reply_to_username: c.reply_to_username
-            })) || []
-        }));
-
+        // 使用统一的映射函数
+        const mappedProjects: Project[] = data.map((p: any) => mapProjectWithDetails(p));
         setProjects(mappedProjects);
     };
 
@@ -147,10 +126,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             .from('discussions')
             .select(`
                 *,
-                profiles:author_id (display_name),
+                profiles:author_id (display_name, username),
                 discussion_replies (
                     *,
-                    profiles:author_id (display_name, avatar_url)
+                    profiles:author_id (display_name, username, avatar_url)
                 )
             `)
             .order('created_at', { ascending: false, foreignTable: 'discussion_replies' })
@@ -169,17 +148,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             date: new Date(d.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
             likes: d.likes_count,
             tags: d.tags || [],
-            replies: d.discussion_replies?.map((r: any) => ({
-                id: r.id,
-                author: r.profiles?.display_name || r.profiles?.username || 'Unknown',
-                userId: r.author_id,
-                avatar: r.profiles?.avatar_url,
-                content: r.content,
-                date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                parent_id: r.parent_id,
-                reply_to_user_id: r.reply_to_user_id,
-                reply_to_username: r.reply_to_username
-            })) || []
+            // 使用统一的映射函数处理回复
+            replies: d.discussion_replies?.map((r: any) => mapComment(r)) || []
         }));
 
         setDiscussions(mappedDiscussions);
@@ -396,20 +366,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             commentsCount: stats.commentsCount + 1
         });
 
-        // Map to Comment type
-        const mappedComment: Comment = {
-            id: newComment.id,
-            author: newComment.profiles?.display_name || 'Unknown',
-            userId: newComment.author_id,
-            avatar: newComment.profiles?.avatar_url,
-            content: newComment.content,
-            date: new Date(newComment.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            parent_id: newComment.parent_id,
-            reply_to_user_id: newComment.reply_to_user_id,
-            reply_to_username: newComment.reply_to_username
-        };
-
-        return mappedComment;
+        // 使用统一的映射函数
+        return mapComment(newComment as any);
     };
 
     const toggleLike = async (projectId: string | number) => {
@@ -532,20 +490,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // Award XP for replying
         addXp(5, "回复讨论");
 
-        // Map to Comment type
-        const mappedReply: Comment = {
-            id: newReply.id,
-            author: newReply.profiles?.display_name || 'Unknown',
-            userId: newReply.author_id,
-            avatar: newReply.profiles?.avatar_url,
-            content: newReply.content,
-            date: new Date(newReply.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            parent_id: newReply.parent_id,
-            reply_to_user_id: newReply.reply_to_user_id,
-            reply_to_username: newReply.reply_to_username
-        };
-
-        return mappedReply;
+        // 使用统一的映射函数
+        return mapComment(newReply as any);
     };
 
     const joinChallenge = async (challengeId: string | number) => {

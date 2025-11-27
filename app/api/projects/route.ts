@@ -6,6 +6,11 @@ import {
   validateEnum,
   validateArray,
 } from '@/lib/api/validation'
+import type { 
+  ProjectStep, 
+  ProjectMaterialInsert, 
+  ProjectStepInsert 
+} from '@/lib/api/types'
 
 const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as const
 
@@ -29,21 +34,28 @@ export async function POST(request: Request) {
     const category = validateEnum(body.category, 'Category', VALID_CATEGORIES)
     const image_url = validateRequiredString(body.image_url, 'Image URL', 500)
     
-    // 验证材料和步骤
-    const materials = body.materials 
-      ? validateArray(body.materials, 'Materials', 50).map((m: any) => 
+    // 验证材料和步骤 - 使用明确的类型定义
+    const materials: string[] = body.materials 
+      ? validateArray(body.materials, 'Materials', 50).map((m: unknown) => 
           validateRequiredString(m, 'Material', 200)
         )
       : []
     
-    const steps = body.steps
-      ? validateArray(body.steps, 'Steps', 50).map((step: any) => ({
-          title: validateRequiredString(step.title, 'Step title', 200),
-          description: validateRequiredString(step.description, 'Step description', 1000),
-        }))
+    const steps: ProjectStep[] = body.steps
+      ? validateArray(body.steps, 'Steps', 50).map((step: unknown) => {
+          // 类型守卫：确保step是对象
+          if (typeof step !== 'object' || step === null) {
+            throw new Error('Invalid step format')
+          }
+          const stepObj = step as { title?: unknown; description?: unknown }
+          return {
+            title: validateRequiredString(stepObj.title, 'Step title', 200),
+            description: validateRequiredString(stepObj.description, 'Step description', 1000),
+          }
+        })
       : []
     
-    // 创建项目（默认状态为待审核）
+    // 创建项目（Supabase类型系统需要as any）
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
@@ -57,47 +69,47 @@ export async function POST(request: Request) {
       .select()
       .single() as any
     
-    if (projectError) {
-      throw projectError
+    if (projectError || !project) {
+      throw projectError || new Error('Failed to create project')
     }
     
     // 并行添加材料和步骤
-    const promises = []
+    const promises: Promise<void>[] = []
 
     // 添加材料
-    if (materials.length > 0 && project) {
+    if (materials.length > 0) {
+      const materialInserts: ProjectMaterialInsert[] = materials.map((material, index) => ({
+        project_id: project.id,
+        material,
+        sort_order: index,
+      }))
+      
       promises.push(
-        supabase
-          .from('project_materials')
-          .insert(
-            materials.map((material: string, index: number) => ({
-              project_id: project.id,
-              material,
-              sort_order: index,
-            })) as any
-          )
-          .then(({ error }) => {
-            if (error) throw error
-          })
+        (async () => {
+          const { error } = await supabase
+            .from('project_materials')
+            .insert(materialInserts as any)
+          if (error) throw error
+        })()
       )
     }
     
     // 添加步骤
-    if (steps.length > 0 && project) {
+    if (steps.length > 0) {
+      const stepInserts: ProjectStepInsert[] = steps.map((step, index) => ({
+        project_id: project.id,
+        title: step.title,
+        description: step.description,
+        sort_order: index,
+      }))
+      
       promises.push(
-        supabase
-          .from('project_steps')
-          .insert(
-            steps.map((step: { title: string; description: string }, index: number) => ({
-              project_id: project.id,
-              title: step.title,
-              description: step.description,
-              sort_order: index,
-            })) as any
-          )
-          .then(({ error }) => {
-            if (error) throw error
-          })
+        (async () => {
+          const { error } = await supabase
+            .from('project_steps')
+            .insert(stepInserts as any)
+          if (error) throw error
+        })()
       )
     }
 

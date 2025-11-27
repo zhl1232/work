@@ -17,6 +17,7 @@ import { useGamification, BADGES } from '@/context/gamification-context'
 import { LevelProgress } from '@/components/features/gamification/level-progress'
 import { createClient } from '@/lib/supabase/client'
 import type { Project } from '@/context/project-context'
+import { mapProject } from '@/lib/mappers/project'
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth()
@@ -44,78 +45,56 @@ export default function ProfilePage() {
     if (!user) return
 
     const loadUserProjects = async () => {
-      // 加载用户发布的项目
-      const { data: myProjectsData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('author_id', user.id)
-        .order('created_at', { ascending: false })
+      // 并行执行所有查询，提升性能
+      const [myProjectsData, likedData, completedData] = await Promise.all([
+        // 查询用户发布的项目
+        supabase
+          .from('projects')
+          .select('*')
+          .eq('author_id', user.id)
+          .order('created_at', { ascending: false })
+          .then(({ data }) => data),
+        
+        // 查询用户收藏的项目
+        likedProjects.size > 0
+          ? supabase
+              .from('projects')
+              .select(`
+                *,
+                profiles:author_id (display_name)
+              `)
+              .in('id', Array.from(likedProjects))
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data)
+          : Promise.resolve(null),
+        
+        // 查询用户完成的项目
+        completedProjects.size > 0
+          ? supabase
+              .from('projects')
+              .select(`
+                *,
+                profiles:author_id (display_name)
+              `)
+              .in('id', Array.from(completedProjects))
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data)
+          : Promise.resolve(null)
+      ])
 
+      // 使用统一的映射函数处理数据
       if (myProjectsData) {
-        setMyProjects(myProjectsData.map(p => ({
-          id: p.id,
-          title: p.title,
-          author: profile?.display_name || '',
-          author_id: p.author_id,
-          image: p.image_url || '',
-          category: p.category || '',
-          likes: p.likes_count,
-          description: p.description || ''
-        })))
+        setMyProjects(myProjectsData.map(p => mapProject(p as any, profile?.display_name || undefined)))
       }
 
-      // 加载用户收藏的项目
-      if (likedProjects.size > 0) {
-        const likedIds = Array.from(likedProjects)
-        const { data: likedData } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            profiles:author_id (display_name)
-          `)
-          .in('id', likedIds)
-          .order('created_at', { ascending: false })
-
-        if (likedData) {
-          setLikedProjectsList(likedData.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            author: p.profiles?.display_name || '',
-            author_id: p.author_id,
-            image: p.image_url || '',
-            category: p.category || '',
-            likes: p.likes_count,
-            description: p.description || ''
-          })))
-        }
+      if (likedData) {
+        setLikedProjectsList(likedData.map((p: any) => mapProject(p)))
       } else {
         setLikedProjectsList([])
       }
 
-      // 加载用户完成的项目
-      if (completedProjects.size > 0) {
-        const completedIds = Array.from(completedProjects)
-        const { data: completedData } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            profiles:author_id (display_name)
-          `)
-          .in('id', completedIds)
-          .order('created_at', { ascending: false })
-
-        if (completedData) {
-          setCompletedProjectsList(completedData.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            author: p.profiles?.display_name || '',
-            author_id: p.author_id,
-            image: p.image_url || '',
-            category: p.category || '',
-            likes: p.likes_count,
-            description: p.description || ''
-          })))
-        }
+      if (completedData) {
+        setCompletedProjectsList(completedData.map((p: any) => mapProject(p)))
       } else {
         setCompletedProjectsList([])
       }
