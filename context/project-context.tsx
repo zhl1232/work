@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { callRpc } from "@/lib/supabase/rpc";
 import { useAuth } from "@/context/auth-context";
 import { useGamification } from "@/context/gamification-context";
+import { useNotifications } from "@/context/notification-context";
 
 export type Comment = {
     id: string | number;
@@ -12,6 +14,9 @@ export type Comment = {
     avatar?: string;
     content: string;
     date: string;
+    parent_id?: number | null;
+    reply_to_user_id?: string | null;
+    reply_to_username?: string | null;
 };
 
 export type Discussion = {
@@ -55,7 +60,7 @@ type ProjectContextType = {
     likedProjects: Set<string | number>;
     completedProjects: Set<string | number>;
     addProject: (project: Project) => void;
-    addComment: (projectId: string | number, comment: Comment) => void;
+    addComment: (projectId: string | number, comment: Comment, parentId?: number) => Promise<Comment | null>;
     toggleLike: (projectId: string | number) => void;
     isLiked: (projectId: string | number) => boolean;
     toggleProjectCompleted: (projectId: string | number) => void;
@@ -63,7 +68,7 @@ type ProjectContextType = {
     discussions: Discussion[];
     challenges: Challenge[];
     addDiscussion: (discussion: Discussion) => void;
-    addReply: (discussionId: string | number, reply: Comment) => void;
+    addReply: (discussionId: string | number, reply: Comment, parentId?: number) => Promise<Comment | null>;
     joinChallenge: (challengeId: string | number) => void;
     deleteComment: (commentId: string | number) => Promise<void>;
     deleteReply: (replyId: string | number) => Promise<void>;
@@ -84,8 +89,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     
     const supabase = createClient();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { addXp, checkBadges } = useGamification();
+    const { createNotification } = useNotifications();
 
     const fetchProjects = async () => {
         const { data, error } = await supabase
@@ -101,6 +107,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 )
             `)
             .order('created_at', { ascending: false, foreignTable: 'comments' })
+            .order('id', { ascending: true, foreignTable: 'comments' })
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -125,7 +132,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 userId: c.author_id,
                 avatar: c.profiles?.avatar_url,
                 content: c.content,
-                date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                parent_id: c.parent_id,
+                reply_to_user_id: c.reply_to_user_id,
+                reply_to_username: c.reply_to_username
             })) || []
         }));
 
@@ -165,7 +175,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 userId: r.author_id,
                 avatar: r.profiles?.avatar_url,
                 content: r.content,
-                date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                parent_id: r.parent_id,
+                reply_to_user_id: r.reply_to_user_id,
+                reply_to_username: r.reply_to_username
             })) || []
         }));
 
@@ -239,10 +252,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const initData = async () => {
             setIsLoading(true);
-            await Promise.all([
-                fetchProjects(),
-                fetchDiscussions()
-            ]);
+            // Only fetch challenges globally for now as they are small and used in CommunityPage
+            await fetchChallenges();
             setIsLoading(false);
         };
         initData();
@@ -336,16 +347,44 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         fetchProjects();
     };
 
-    const addComment = async (projectId: string | number, comment: Comment) => {
-        if (!user) return;
+    const addComment = async (projectId: string | number, comment: Comment, parentId?: number) => {
+        if (!user) return null;
 
-        await supabase
+        const { data: newComment, error } = await supabase
             .from('comments')
             .insert({
-                project_id: Number(projectId),
+                project_id: projectId,
                 author_id: user.id,
-                content: comment.content
+                content: comment.content,
+                parent_id: parentId || null,
+                reply_to_user_id: comment.reply_to_user_id || null,
+                reply_to_username: comment.reply_to_username || null
+            })
+            .select(`
+                *,
+                profiles:author_id (display_name, avatar_url)
+            `)
+            .single();
+
+        if (error || !newComment) {
+            console.error('Error adding comment:', error);
+            return null;
+        }
+
+        // Create notification if replying to someone
+        if (comment.reply_to_user_id) {
+            await createNotification({
+                user_id: comment.reply_to_user_id,
+                type: 'mention',
+                content: `${profile?.display_name || '某人'} 在评论中@了你`,
+                related_type: 'comment',
+                related_id: newComment.id,
+                project_id: Number(projectId),
+                from_user_id: user.id,
+                from_username: profile?.display_name || user.email?.split('@')[0] || '未知用户',
+                from_avatar: profile?.avatar_url || user.user_metadata?.avatar_url
             });
+        }
 
         // Award XP for commenting
         addXp(5, "发表评论");
@@ -357,25 +396,38 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             commentsCount: stats.commentsCount + 1
         });
 
-        fetchProjects();
+        // Map to Comment type
+        const mappedComment: Comment = {
+            id: newComment.id,
+            author: newComment.profiles?.display_name || 'Unknown',
+            userId: newComment.author_id,
+            avatar: newComment.profiles?.avatar_url,
+            content: newComment.content,
+            date: new Date(newComment.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            parent_id: newComment.parent_id,
+            reply_to_user_id: newComment.reply_to_user_id,
+            reply_to_username: newComment.reply_to_username
+        };
+
+        return mappedComment;
     };
 
     const toggleLike = async (projectId: string | number) => {
         if (!user) return;
-        const pid = Number(projectId);
+        const pid = typeof projectId === 'string' ? parseInt(projectId) : projectId;
 
-        const isLiked = likedProjects.has(pid);
+        const isLiked = likedProjects.has(projectId);
         
         // Optimistic update
         setLikedProjects(prev => {
             const newSet = new Set(prev);
-            if (isLiked) newSet.delete(pid);
-            else newSet.add(pid);
+            if (isLiked) newSet.delete(projectId);
+            else newSet.add(projectId);
             return newSet;
         });
 
         setProjects(prev => prev.map(p => {
-            if (p.id === pid) {
+            if (p.id === projectId) {
                 return { ...p, likes: p.likes + (isLiked ? -1 : 1) };
             }
             return p;
@@ -383,16 +435,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         if (isLiked) {
             await supabase.from('likes').delete().eq('user_id', user.id).eq('project_id', pid);
-            await supabase.rpc('decrement_project_likes', { project_id: pid });
+            await callRpc(supabase, 'decrement_project_likes', { project_id: pid });
         } else {
             await supabase.from('likes').insert({ user_id: user.id, project_id: pid });
-            await supabase.rpc('increment_project_likes', { project_id: pid });
+            await callRpc(supabase, 'increment_project_likes', { project_id: pid });
         }
     };
 
     const toggleProjectCompleted = async (projectId: string | number) => {
         if (!user) return;
-        const pid = Number(projectId);
+        const pid = projectId;
         const isCompleted = completedProjects.has(pid);
 
         // Optimistic update
@@ -438,21 +490,62 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         fetchDiscussions();
     };
 
-    const addReply = async (discussionId: string | number, reply: Comment) => {
-        if (!user) return;
+    const addReply = async (discussionId: string | number, reply: Comment, parentId?: number) => {
+        if (!user) return null;
 
-        await supabase
+        const { data: newReply, error } = await supabase
             .from('discussion_replies')
             .insert({
-                discussion_id: Number(discussionId),
+                discussion_id: discussionId,
                 author_id: user.id,
-                content: reply.content
+                content: reply.content,
+                parent_id: parentId || null,
+                reply_to_user_id: reply.reply_to_user_id || null,
+                reply_to_username: reply.reply_to_username || null
+            })
+            .select(`
+                *,
+                profiles:author_id (display_name, avatar_url)
+            `)
+            .single();
+
+        if (error || !newReply) {
+            console.error('Error adding reply:', error);
+            return null;
+        }
+
+        // Create notification if replying to someone
+        if (reply.reply_to_user_id) {
+            await createNotification({
+                user_id: reply.reply_to_user_id,
+                type: 'mention',
+                content: `${profile?.display_name || '某人'} 在讨论中@了你`,
+                related_type: 'discussion_reply',
+                related_id: newReply.id,
+                discussion_id: Number(discussionId),
+                from_user_id: user.id,
+                from_username: profile?.display_name || user.email?.split('@')[0] || '未知用户',
+                from_avatar: profile?.avatar_url || user.user_metadata?.avatar_url
             });
+        }
 
         // Award XP for replying
         addXp(5, "回复讨论");
 
-        fetchDiscussions();
+        // Map to Comment type
+        const mappedReply: Comment = {
+            id: newReply.id,
+            author: newReply.profiles?.display_name || 'Unknown',
+            userId: newReply.author_id,
+            avatar: newReply.profiles?.avatar_url,
+            content: newReply.content,
+            date: new Date(newReply.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            parent_id: newReply.parent_id,
+            reply_to_user_id: newReply.reply_to_user_id,
+            reply_to_username: newReply.reply_to_username
+        };
+
+        return mappedReply;
     };
 
     const joinChallenge = async (challengeId: string | number) => {
@@ -481,17 +574,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             // Wait, I didn't see a DELETE policy for challenge_participants in schema.
             // I should check schema.
             await supabase.from('challenge_participants').delete().eq('user_id', user.id).eq('challenge_id', cid);
-            await supabase.rpc('decrement_challenge_participants', { challenge_id: cid });
+            await callRpc(supabase, 'decrement_challenge_participants', { challenge_id: cid });
         } else {
             // Join
             await supabase.from('challenge_participants').insert({ user_id: user.id, challenge_id: cid });
-            await supabase.rpc('increment_challenge_participants', { challenge_id: cid });
+            await callRpc(supabase, 'increment_challenge_participants', { challenge_id: cid });
         }
     };
 
     const deleteComment = async (commentId: string | number) => {
         if (!user) return;
-        const cid = Number(commentId);
+        const cid = commentId;
 
         // Optimistic update
         setProjects(prev => prev.map(p => {
@@ -517,7 +610,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     const deleteReply = async (replyId: string | number) => {
         if (!user) return;
-        const rid = Number(replyId);
+        const rid = replyId;
 
         // Optimistic update
         setDiscussions(prev => prev.map(d => {
@@ -542,7 +635,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     const deleteDiscussion = async (discussionId: string | number) => {
         if (!user) return;
-        const did = Number(discussionId);
+        const did = discussionId;
 
         // Optimistic update
         setDiscussions(prev => prev.filter(d => d.id !== did));

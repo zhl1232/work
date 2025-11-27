@@ -3,23 +3,143 @@
 import { Button } from "@/components/ui/button";
 import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send, Trash2 } from "lucide-react";
 import { ConfettiButton } from "@/components/ui/confetti-button";
-import { useProjects } from "@/context/project-context";
+import { useProjects, Comment as ProjectComment, Project } from "@/context/project-context";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/features/project-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-    const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted, deleteComment, isLoading } = useProjects();
+    const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted, deleteComment } = useProjects();
     const { user, profile } = useAuth();
     const { promptLogin } = useLoginPrompt();
     const router = useRouter();
     const [newComment, setNewComment] = useState("");
+    const [replyingTo, setReplyingTo] = useState<number | string | null>(null);
+    const [replyContent, setReplyContent] = useState("");
+    
+    // Local state for project data
+    const [project, setProject] = useState<Project | null>(null);
+    const [relatedProjects, setRelatedProjects] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
+    
+    // Supabase client
+    const supabase = createClient();
+
+    // Fetch project data
+    useEffect(() => {
+        const fetchProject = async () => {
+            setIsLoading(true);
+            
+            // First check if it exists in context (optional, but good for cache)
+            const cachedProject = projects.find((p) => String(p.id) === params.id);
+            if (cachedProject) {
+                setProject(cachedProject);
+                setIsLoading(false);
+                return;
+            }
+
+            // If not in context, fetch from Supabase
+            const { data, error } = await supabase
+                .from('projects')
+                .select(`
+                    *,
+                    profiles:author_id (display_name),
+                    project_materials (*),
+                    project_steps (*),
+                    comments (
+                        *,
+                        profiles:author_id (display_name, avatar_url)
+                    )
+                `)
+                .eq('id', params.id)
+                .single();
+
+            if (error || !data) {
+                console.error('Error fetching project:', error);
+                setNotFound(true);
+                setIsLoading(false);
+                return;
+            }
+
+            // Map the data to Project type
+            const mappedProject: Project = {
+                id: data.id,
+                title: data.title,
+                author: data.profiles?.display_name || 'Unknown',
+                author_id: data.author_id,
+                image: data.image_url || '',
+                category: data.category || '',
+                likes: data.likes_count,
+                description: data.description || '',
+                materials: data.project_materials?.sort((a: any, b: any) => a.sort_order - b.sort_order).map((m: any) => m.material) || [],
+                steps: data.project_steps?.sort((a: any, b: any) => a.sort_order - b.sort_order).map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
+                comments: data.comments?.map((c: any) => ({
+                    id: c.id,
+                    author: c.profiles?.display_name || 'Unknown',
+                    userId: c.author_id,
+                    avatar: c.profiles?.avatar_url,
+                    content: c.content,
+                    date: new Date(c.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    parent_id: c.parent_id,
+                    reply_to_user_id: c.reply_to_user_id,
+                    reply_to_username: c.reply_to_username
+                })) || []
+            };
+
+            setProject(mappedProject);
+            setIsLoading(false);
+
+            // Fetch related projects
+            if (mappedProject.category) {
+                const { data: relatedData } = await supabase
+                    .from('projects')
+                    .select('id, title, image_url, category, author_id, profiles:author_id(display_name)')
+                    .eq('category', mappedProject.category)
+                    .neq('id', mappedProject.id)
+                    .limit(3);
+                
+                if (relatedData) {
+                    setRelatedProjects(relatedData.map((p: any) => ({
+                        id: p.id,
+                        title: p.title,
+                        image: p.image_url,
+                        category: p.category,
+                        author: p.profiles?.display_name || 'Unknown'
+                    })));
+                }
+            }
+        };
+
+        if (params.id) {
+            fetchProject();
+        }
+    }, [params.id, projects]);
+
+    // Scroll to hash anchor on load
+    useEffect(() => {
+        if (!isLoading && typeof window !== 'undefined' && window.location.hash) {
+            const hash = window.location.hash.substring(1);
+            // Use requestAnimationFrame for better reliability
+            requestAnimationFrame(() => {
+                const element = document.getElementById(hash);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'auto', block: 'start' });
+                    const headerOffset = 100;
+                    window.scrollBy({ top: -headerOffset, behavior: 'smooth' });
+                    element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                    setTimeout(() => element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000);
+                }
+            });
+        }
+    }, [isLoading]);
 
     // Handle special case for "color-lab" and "pixel-art"
     if (params.id === "color-lab") {
@@ -34,8 +154,6 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             return null;
         }
     }
-
-    const project = projects.find((p) => String(p.id) === params.id);
 
     if (isLoading) {
         return (
@@ -58,7 +176,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         );
     }
 
-    if (!project) {
+    if (notFound || !project) {
         return (
             <div className="container mx-auto py-16 text-center">
                 <h1 className="text-2xl font-bold mb-4">项目未找到</h1>
@@ -72,23 +190,33 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const isProjectLiked = isLiked(project.id);
     const isProjectCompleted = isCompleted(project.id);
 
-    const handleSubmitComment = (e: React.FormEvent) => {
+    const handleSubmitComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newComment.trim()) return;
 
-        // 检查登录状态
-        if (!user) {
-            promptLogin(() => {
-                // 登录成功后自动发表评论
-                addComment(project.id, {
-                    id: Date.now(),
-                    author: "我 (Me)",
-                    userId: undefined,
-                    avatar: undefined,
-                    content: newComment,
-                    date: new Date().toLocaleDateString(),
+        const submitComment = async () => {
+             const addedComment = await addComment(project.id, {
+                id: 0, 
+                author: "Me", 
+                content: newComment,
+                date: "",
+            });
+            
+            if (addedComment) {
+                setProject((prev) => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        comments: [addedComment, ...(prev.comments || [])]
+                    };
                 });
                 setNewComment("");
+            }
+        };
+
+        if (!user) {
+            promptLogin(() => {
+                submitComment();
             }, {
                 title: '登录以发表评论',
                 description: '登录后即可参与讨论，分享你的想法'
@@ -96,19 +224,55 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             return;
         }
 
-        addComment(project.id, {
-            id: Date.now(),
-            author: profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "我 (Me)",
-            userId: user?.id,
-            content: newComment,
-            date: new Date().toLocaleDateString(),
-        });
-        setNewComment("");
+        submitComment();
     };
 
-    const relatedProjects = projects
-        .filter(p => p.category === project.category && p.id !== project.id)
-        .slice(0, 3);
+    const handleSubmitReply = async (e: React.FormEvent, parentId: number, replyToUserId?: string, replyToUsername?: string) => {
+        e.preventDefault();
+        if (!replyContent.trim()) return;
+
+        const submitReply = async () => {
+            const addedReply = await addComment(project.id, {
+                id: 0,
+                author: "Me",
+                content: replyContent,
+                date: "",
+                reply_to_user_id: replyToUserId,
+                reply_to_username: replyToUsername,
+            }, parentId);
+
+            if (addedReply) {
+                 setProject((prev) => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        comments: [addedReply, ...(prev.comments || [])]
+                    };
+                });
+                setReplyContent("");
+                setReplyingTo(null);
+            }
+        };
+
+        if (!user) {
+            promptLogin(() => {
+                submitReply();
+            }, {
+                title: '登录以回复评论',
+                description: '登录后即可参与讨论，回复其他用户'
+            });
+            return;
+        }
+
+        submitReply();
+    };
+
+    const handleCancelReply = () => {
+        setReplyContent("");
+        setReplyingTo(null);
+    };
+
+
 
     return (
         <div className="container mx-auto py-8 max-w-4xl">
@@ -187,35 +351,108 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                             </div>
                         </form>
 
-                        <div className="space-y-6">
+                        <div className="space-y-3">
                             {project.comments && project.comments.length > 0 ? (
-                                project.comments.map((comment) => (
-                                    <div key={comment.id} className="flex gap-4 group">
-                                        <Avatar className="h-10 w-10 shrink-0">
-                                            <AvatarImage src={comment.avatar || ""} />
-                                            <AvatarFallback>{comment.author[0]}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="space-y-1 flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-semibold text-sm">{comment.author}</span>
-                                                    <span className="text-xs text-muted-foreground">{comment.date}</span>
+                                (() => {
+                                    const topLevelComments = project.comments!.filter(c => !c.parent_id);
+                                    const getNestedComments = (parentId: number | string) => {
+                                        return project.comments?.filter(c => c.parent_id === parentId) || [];
+                                    };
+
+                                    const renderComment = (comment: ProjectComment, isNested: boolean = false): JSX.Element => {
+                                        const nestedComments = getNestedComments(comment.id);
+                                        const isReplying = replyingTo === comment.id;
+
+                                        return (
+                                            <div key={comment.id} className={isNested ? "ml-8 mt-3" : ""} id={`comment-${comment.id}`}>
+                                                <div className={`rounded-lg p-4 border transition-colors ${
+                                                    isNested 
+                                                        ? "bg-background/50 border-l-2 border-muted-foreground/20" 
+                                                        : "bg-muted/20 border-l-2 border-primary/30"
+                                                }`}>
+                                                    <div className="flex gap-3 group">
+                                                        <Avatar className="h-8 w-8 shrink-0">
+                                                            <AvatarImage src={comment.avatar || ""} />
+                                                            <AvatarFallback>{comment.author[0]}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-semibold text-sm">{comment.author}</span>
+                                                                    <span className="text-xs text-muted-foreground">{comment.date}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-7 px-2 text-xs"
+                                                                        onClick={() => setReplyingTo(comment.id)}
+                                                                    >
+                                                                        <MessageCircle className="h-3 w-3 mr-1" />
+                                                                        回复
+                                                                    </Button>
+                                                                    {(user?.id === comment.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                            onClick={() => deleteComment(comment.id)}
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-sm leading-relaxed">
+                                                                {comment.reply_to_username && (
+                                                                    <span className="text-primary font-medium mr-1">
+                                                                        @{comment.reply_to_username}
+                                                                    </span>
+                                                                )}
+                                                                {comment.content}
+                                                            </p>
+
+                                                            {/* 内嵌回复框 */}
+                                                            {isReplying && (
+                                                                <form 
+                                                                    onSubmit={(e) => handleSubmitReply(e, Number(comment.id), comment.userId, comment.author)} 
+                                                                    className="mt-3 space-y-2 bg-accent/5 rounded-md p-3 border border-accent/20"
+                                                                >
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        回复 <span className="text-primary font-medium">@{comment.author}</span>
+                                                                    </div>
+                                                                    <Input
+                                                                        value={replyContent}
+                                                                        onChange={(e) => setReplyContent(e.target.value)}
+                                                                        placeholder="输入你的回复..."
+                                                                        autoFocus
+                                                                    />
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <Button type="button" variant="ghost" size="sm" onClick={handleCancelReply}>
+                                                                            取消
+                                                                        </Button>
+                                                                        <Button type="submit" size="sm" disabled={!replyContent.trim()}>
+                                                                            发送
+                                                                        </Button>
+                                                                    </div>
+                                                                </form>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                {(user?.id === comment.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                                        onClick={() => deleteComment(comment.id)}
-                                                    >
-                                                        <Trash2 className="h-3 w-3" />
-                                                    </Button>
+
+                                                {/* 嵌套回复 */}
+                                                {nestedComments.length > 0 && (
+                                                    <div className="space-y-3 mt-3">
+                                                        {nestedComments.map(nestedComment => renderComment(nestedComment, true))}
+                                                    </div>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-foreground/80">{comment.content}</p>
-                                        </div>
-                                    </div>
-                                ))
+                                        );
+                                    };
+
+                                    return topLevelComments.map(comment => renderComment(comment, false));
+                                })()
                             ) : (
                                 <div className="text-center py-8 text-muted-foreground text-sm">
                                     还没有评论，快来抢沙发吧！

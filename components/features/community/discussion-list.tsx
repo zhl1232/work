@@ -1,40 +1,121 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useProjects, Discussion } from "@/context/project-context";
+import { Discussion } from "@/context/project-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Heart, Tag, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { createClient } from "@/lib/supabase/client";
 
 export function DiscussionList() {
-    const { discussions, addDiscussion, deleteDiscussion } = useProjects();
     const { user, profile } = useAuth();
     const [isCreating, setIsCreating] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
     const [newTags, setNewTags] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [discussions, setDiscussions] = useState<Discussion[]>([]);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const observer = useRef<IntersectionObserver | null>(null);
+    const supabase = createClient();
+
+    const fetchDiscussions = async (reset = false) => {
+        if (isLoading && !reset) return;
+        setIsLoading(true);
+
+        const currentPage = reset ? 0 : page;
+        const PAGE_SIZE = 10;
+        const from = currentPage * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data, error } = await supabase
+            .from('discussions')
+            .select(`
+                *,
+                profiles:author_id (display_name),
+                discussion_replies (count)
+            `)
+            .order('created_at', { ascending: false })
+            .range(from, to);
+
+        if (error) {
+            console.error('Error fetching discussions:', error);
+            setIsLoading(false);
+            return;
+        }
+
+        const mappedDiscussions: Discussion[] = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            author: d.profiles?.display_name || 'Unknown',
+            content: d.content,
+            date: new Date(d.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+            likes: d.likes_count,
+            tags: d.tags || [],
+            replies: Array(d.discussion_replies[0]?.count || 0).fill({}), // Mock array for length count
+        }));
+
+        if (reset) {
+            setDiscussions(mappedDiscussions);
+            setPage(1);
+        } else {
+            setDiscussions(prev => [...prev, ...mappedDiscussions]);
+            setPage(prev => prev + 1);
+        }
+
+        setHasMore(data.length === PAGE_SIZE);
+        setIsLoading(false);
+    };
+
+    useEffect(() => {
+        fetchDiscussions(true);
+    }, []);
+
+    const lastDiscussionElementRef = useCallback((node: HTMLDivElement) => {
+        if (isLoading) return;
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore) {
+                fetchDiscussions(false);
+            }
+        });
+        if (node) observer.current.observe(node);
+    }, [isLoading, hasMore]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTitle.trim() || !newContent.trim()) return;
+        if (!newTitle.trim() || !newContent.trim() || !user) return;
 
-        const discussion: Discussion = {
-            id: Date.now(),
-            title: newTitle,
-            author: "我 (Me)",
-            content: newContent,
-            date: new Date().toLocaleDateString(),
-            replies: [],
-            likes: 0,
-            tags: newTags.split(",").map(t => t.trim()).filter(t => t),
-        };
+        const { error } = await supabase
+            .from('discussions')
+            .insert({
+                title: newTitle,
+                content: newContent,
+                author_id: user.id,
+                tags: newTags.split(",").map(t => t.trim()).filter(t => t)
+            });
 
-        addDiscussion(discussion);
-        setNewTitle("");
-        setNewContent("");
-        setNewTags("");
-        setIsCreating(false);
+        if (!error) {
+            setNewTitle("");
+            setNewContent("");
+            setNewTags("");
+            setIsCreating(false);
+            fetchDiscussions(true);
+        }
+    };
+
+    const handleDelete = async (id: string | number) => {
+        const { error } = await supabase
+            .from('discussions')
+            .delete()
+            .eq('id', id);
+        
+        if (!error) {
+            setDiscussions(prev => prev.filter(d => d.id !== id));
+        }
     };
 
     return (
@@ -79,54 +160,66 @@ export function DiscussionList() {
             )}
 
             <div className="space-y-4">
-                {discussions.map((discussion) => (
-                    <div key={discussion.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-white/70 dark:bg-gray-800/70 backdrop-blur-md hover:scale-105 transition-transform cursor-pointer group relative">
-                        <Link href={`/community/discussion/${discussion.id}`} className="absolute inset-0" />
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">{discussion.title}</h3>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                        👤 {discussion.author}
-                                    </span>
-                                    <span>{discussion.date}</span>
+                {discussions.map((discussion, index) => {
+                    const content = (
+                        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-white/70 dark:bg-gray-800/70 backdrop-blur-md hover:scale-105 transition-transform cursor-pointer group relative">
+                            <Link href={`/community/discussion/${discussion.id}`} className="absolute inset-0" />
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">{discussion.title}</h3>
+                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                        <span className="flex items-center gap-1">
+                                            👤 {discussion.author}
+                                        </span>
+                                        <span>{discussion.date}</span>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    {discussion.tags.map(tag => (
+                                        <span key={tag} className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs flex items-center gap-1">
+                                            <Tag className="h-3 w-3" /> {tag}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                {discussion.tags.map(tag => (
-                                    <span key={tag} className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs flex items-center gap-1">
-                                        <Tag className="h-3 w-3" /> {tag}
-                                    </span>
-                                ))}
+                            <p className="text-muted-foreground mb-4 line-clamp-2">{discussion.content}</p>
+                            <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4 relative z-10">
+                                <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent">
+                                    <MessageSquare className="h-4 w-4" />
+                                    {discussion.replies.length} 回复
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent hover:text-red-500">
+                                    <Heart className="h-4 w-4" />
+                                    {discussion.likes} 赞
+                                </Button>
+                                {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-auto p-0 hover:bg-transparent hover:text-destructive ml-auto relative z-20"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleDelete(discussion.id);
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                )}
                             </div>
                         </div>
-                        <p className="text-muted-foreground mb-4">{discussion.content}</p>
-                        <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4 relative z-10">
-                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent">
-                                <MessageSquare className="h-4 w-4" />
-                                {discussion.replies.length} 回复
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent hover:text-red-500">
-                                <Heart className="h-4 w-4" />
-                                {discussion.likes} 赞
-                            </Button>
-                            {(profile?.role === 'admin' || profile?.role === 'moderator') && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-auto p-0 hover:bg-transparent hover:text-destructive ml-auto relative z-20"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        deleteDiscussion(discussion.id);
-                                    }}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                    );
+
+                    if (discussions.length === index + 1) {
+                        return <div ref={lastDiscussionElementRef} key={discussion.id}>{content}</div>;
+                    } else {
+                        return <div key={discussion.id}>{content}</div>;
+                    }
+                })}
+                
+                {isLoading && (
+                    <div className="text-center py-4 text-muted-foreground">加载中...</div>
+                )}
             </div>
         </div>
     );

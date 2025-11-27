@@ -68,7 +68,7 @@ export async function requireRole(
   }
 
   // Type assertion for profile role
-  const userRole = profile.role as 'user' | 'moderator' | 'admin'
+  const userRole = (profile as any).role as 'user' | 'moderator' | 'admin'
 
   if (!allowedRoles.includes(userRole)) {
     throw new PermissionError(

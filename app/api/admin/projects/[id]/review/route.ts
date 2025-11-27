@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole, handleApiError } from '@/lib/api/auth'
 import { validateEnum, validateOptionalString } from '@/lib/api/validation'
+import { callRpc } from '@/lib/supabase/rpc'
 
 /**
  * POST /api/admin/projects/[id]/review
@@ -35,7 +36,7 @@ export async function POST(
     
     if (action === 'approve') {
       // 调用批准函数
-      const { error } = await supabase.rpc('approve_project', {
+      const { error } = await callRpc(supabase, 'approve_project', {
         project_id: projectId
       })
       
@@ -49,7 +50,7 @@ export async function POST(
       })
     } else {
       // 调用拒绝函数
-      const { error } = await supabase.rpc('reject_project', {
+      const { error } = await callRpc(supabase, 'reject_project', {
         project_id: projectId,
         reason: rejection_reason || ''
       })

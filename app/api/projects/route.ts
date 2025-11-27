@@ -5,11 +5,11 @@ import {
   validateRequiredString,
   validateEnum,
   validateArray,
-  sanitizeSearch,
 } from '@/lib/api/validation'
 
 const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as const
 
+/**
  * POST /api/projects
  * 创建新项目
  * 需要认证
@@ -52,54 +52,58 @@ export async function POST(request: Request) {
         category,
         image_url,
         author_id: user.id,
-        status: 'pending' as const, // 新项目默认为待审核状态
-      })
+        status: 'pending', // 新项目默认为待审核状态
+      } as any)
       .select()
-      .single()
+      .single() as any
     
     if (projectError) {
       throw projectError
     }
     
+    // 并行添加材料和步骤
+    const promises = []
+
     // 添加材料
     if (materials.length > 0 && project) {
-      const { error: materialsError } = await supabase
-        .from('project_materials')
-        .insert(
-          materials.map((material: string, index: number) => ({
-            project_id: project.id,
-            material,
-            sort_order: index,
-          }))
-        )
-      
-      if (materialsError) {
-        // 已记录，但不阻止项目创建
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error adding materials:', materialsError)
-        }
-      }
+      promises.push(
+        supabase
+          .from('project_materials')
+          .insert(
+            materials.map((material: string, index: number) => ({
+              project_id: project.id,
+              material,
+              sort_order: index,
+            })) as any
+          )
+          .then(({ error }) => {
+            if (error) throw error
+          })
+      )
     }
     
     // 添加步骤
     if (steps.length > 0 && project) {
-      const { error: stepsError } = await supabase
-        .from('project_steps')
-        .insert(
-          steps.map((step: { title: string; description: string }, index: number) => ({
-            project_id: project.id,
-            title: step.title,
-            description: step.description,
-            sort_order: index,
-          }))
-        )
-      
-      if (stepsError) {
-        // 已记录，但不阻止项目创建
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error adding steps:', stepsError)
-        }
-      }
+      promises.push(
+        supabase
+          .from('project_steps')
+          .insert(
+            steps.map((step: { title: string; description: string }, index: number) => ({
+              project_id: project.id,
+              title: step.title,
+              description: step.description,
+              sort_order: index,
+            })) as any
+          )
+          .then(({ error }) => {
+            if (error) throw error
+          })
+      )
+    }
+
+    // 等待所有子资源创建完成
+    if (promises.length > 0) {
+      await Promise.all(promises)
     }
     
     return NextResponse.json(project, { status: 201 })

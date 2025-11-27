@@ -1,43 +1,124 @@
 "use client";
 
-import { useProjects, Comment } from "@/context/project-context";
+import { useProjects, Comment as ProjectComment, Discussion } from "@/context/project-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Heart, Tag, ArrowLeft, User, Calendar, Trash2 } from "lucide-react";
+import { MessageSquare, Heart, Tag, ArrowLeft, User, Calendar, Trash2, Reply } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
-    const { discussions, addReply, deleteReply, isLoading } = useProjects();
+    const { discussions, addReply, deleteReply } = useProjects();
     const { user, profile } = useAuth(); 
-    // Checking context... context has `addReply` but `toggleLike` takes `projectId`. 
-    // The current context definition for `toggleLike` is `(projectId: string | number) => void`.
-    // It seems I might need to update context to support liking discussions, or just handle it locally for now/mock it, or update context.
-    // Given the plan didn't explicitly say "update context for discussion likes", I'll check if I can easily add it or if I should just implement the UI.
-    // Looking at `project-context.tsx`, `toggleLike` updates `likedProjects` set and `projects` state. It doesn't touch `discussions`.
-    // However, `Discussion` type has `likes: number`.
-    // I will implement `addReply` which is in context. For likes, I might skip interactive liking for discussions in this step or add a specific `likeDiscussion` to context if needed. 
-    // Let's stick to `addReply` first as that's the main interaction.
     
     const router = useRouter();
     const [replyContent, setReplyContent] = useState("");
+    const [replyingTo, setReplyingTo] = useState<number | null>(null);
     const [id, setId] = useState<string | number | null>(null);
+
+    // Local state
+    const [discussion, setDiscussion] = useState<Discussion | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
+    const supabase = createClient();
 
     // Handle params unwrapping
     useEffect(() => {
-        // In Next.js 15 params is a promise, but in 14 it's an object. 
-        // Assuming standard usage, but to be safe with types:
         if (params.id) {
             setId(params.id);
         }
     }, [params]);
 
-    if (!id) return null;
+    // Fetch discussion
+    useEffect(() => {
+        const fetchDiscussion = async () => {
+             if (!id) return;
+             setIsLoading(true);
 
-    // Find discussion. The ID in URL is string, but in data it might be number.
-    const discussion = discussions.find(d => d.id.toString() === id.toString());
+             const cached = discussions.find(d => d.id.toString() === id.toString());
+             if (cached) {
+                 setDiscussion(cached);
+                 setIsLoading(false);
+                 return;
+             }
+
+             const { data, error } = await supabase
+                .from('discussions')
+                .select(`
+                    *,
+                    profiles:author_id (display_name),
+                    discussion_replies (
+                        *,
+                        profiles:author_id (display_name, avatar_url)
+                    )
+                `)
+                .eq('id', id)
+                .single();
+
+             if (error || !data) {
+                 console.error('Error fetching discussion:', error);
+                 setNotFound(true);
+                 setIsLoading(false);
+                 return;
+             }
+
+             const mappedDiscussion: Discussion = {
+                id: data.id,
+                title: data.title,
+                author: data.profiles?.display_name || 'Unknown',
+                content: data.content,
+                date: new Date(data.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+                likes: data.likes_count,
+                tags: data.tags || [],
+                replies: data.discussion_replies?.map((r: any) => ({
+                    id: r.id,
+                    author: r.profiles?.display_name || 'Unknown',
+                    userId: r.author_id,
+                    avatar: r.profiles?.avatar_url,
+                    content: r.content,
+                    date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    parent_id: r.parent_id,
+                    reply_to_user_id: r.reply_to_user_id,
+                    reply_to_username: r.reply_to_username
+                })) || []
+             };
+
+             setDiscussion(mappedDiscussion);
+             setIsLoading(false);
+        };
+
+        fetchDiscussion();
+    }, [id, discussions]);
+
+    // Scroll to hash anchor on load
+    useEffect(() => {
+        if (!isLoading && id && typeof window !== 'undefined' && window.location.hash) {
+            const hash = window.location.hash.substring(1);
+            requestAnimationFrame(() => {
+                const element = document.getElementById(hash);
+                if (element) {
+                    const headerOffset = 100;
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+            
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: "smooth"
+                    });
+
+                    element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                    setTimeout(() => {
+                        element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                    }, 2000);
+                }
+            });
+        }
+    }, [isLoading, id]);
+
+    if (!id) return null;
 
     if (isLoading) {
         return (
@@ -54,7 +135,7 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
         );
     }
 
-    if (!discussion) {
+    if (notFound || !discussion) {
         return (
             <div className="container mx-auto py-12 text-center">
                 <h1 className="text-2xl font-bold mb-4">讨论不存在</h1>
@@ -63,19 +144,146 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
         );
     }
 
-    const handleSubmitReply = (e: React.FormEvent) => {
+    const handleSubmitReply = async (e: React.FormEvent, parentId?: number, replyToUserId?: string, replyToUsername?: string) => {
         e.preventDefault();
         if (!replyContent.trim()) return;
 
-        const newReply: Comment = {
-            id: Date.now(),
-            author: "我 (Me)",
+        const addedReply = await addReply(discussion.id, {
+            id: 0,
+            author: "Me",
             content: replyContent,
-            date: new Date().toLocaleDateString(),
-        };
+            date: "",
+            reply_to_user_id: replyToUserId,
+            reply_to_username: replyToUsername,
+        }, parentId);
 
-        addReply(discussion.id, newReply);
+        if (addedReply) {
+            setDiscussion((prev) => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    replies: [addedReply, ...prev.replies]
+                };
+            });
+            setReplyContent("");
+            setReplyingTo(null);
+        }
+    };
+
+    const handleCancelReply = () => {
         setReplyContent("");
+        setReplyingTo(null);
+    };
+
+    // 分离顶级回复和嵌套回复
+    const topLevelReplies = discussion.replies.filter(r => !r.parent_id);
+    const getNestedReplies = (parentId: number | string) => {
+        return discussion.replies.filter(r => r.parent_id === parentId);
+    };
+
+    // 渲染回复组件（支持嵌套）
+    const renderReply = (reply: ProjectComment, isNested: boolean = false) => {
+        const nestedReplies = getNestedReplies(reply.id);
+        const isReplying = replyingTo === reply.id;
+
+        return (
+            <div key={reply.id} className={isNested ? "ml-8 mt-3" : ""} id={`reply-${reply.id}`}>
+                <div className={`rounded-lg p-4 border transition-colors ${
+                    isNested 
+                        ? "bg-background/50 border-l-2 border-muted-foreground/20" 
+                        : "bg-muted/20 border-l-2 border-primary/30"
+                }`}>
+                    <div className="flex gap-3 group">
+                        <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarImage src={reply.avatar || ""} />
+                            <AvatarFallback>{reply.author[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-sm">{reply.author}</span>
+                                    <span className="text-xs text-muted-foreground">{reply.date}</span>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs"
+                                        onClick={() => setReplyingTo(Number(reply.id))}
+                                    >
+                                        <Reply className="h-3 w-3 mr-1" />
+                                        回复
+                                    </Button>
+                                    {(user?.id === reply.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                await deleteReply(reply.id);
+                                                setDiscussion((prev) => {
+                                                    if (!prev) return null;
+                                                    return {
+                                                        ...prev,
+                                                        replies: prev.replies.filter((r) => r.id !== reply.id)
+                                                    };
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-sm leading-relaxed">
+                                {reply.reply_to_username && (
+                                    <span className="text-primary font-medium mr-1">
+                                        @{reply.reply_to_username}
+                                    </span>
+                                )}
+                                {reply.content}
+                            </p>
+
+                            {/* 内嵌回复框 */}
+                            {isReplying && (
+                                <form 
+                                    onSubmit={(e) => handleSubmitReply(e, Number(reply.id), reply.userId, reply.author)} 
+                                    className="mt-3 space-y-2 bg-accent/5 rounded-md p-3 border border-accent/20"
+                                >
+                                    <div className="text-sm text-muted-foreground">
+                                        回复 <span className="text-primary font-medium">@{reply.author}</span>
+                                    </div>
+                                    <Textarea
+                                        value={replyContent}
+                                        onChange={(e) => setReplyContent(e.target.value)}
+                                        placeholder="输入你的回复..."
+                                        className="min-h-[80px] resize-none"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="ghost" size="sm" onClick={handleCancelReply}>
+                                            取消
+                                        </Button>
+                                        <Button type="submit" size="sm" disabled={!replyContent.trim()}>
+                                            发送回复
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 嵌套回复 */}
+                {nestedReplies.length > 0 && (
+                    <div className="space-y-3 mt-3">
+                        {nestedReplies.map(nestedReply => renderReply(nestedReply, true))}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -124,57 +332,39 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
                     回复 ({discussion.replies.length})
                 </h3>
 
-                <div className="space-y-6">
-                    {discussion.replies.map((reply) => (
-                        <div key={reply.id} className="bg-muted/30 rounded-lg p-6 border">
-                            <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={reply.avatar || ""} />
-                                        <AvatarFallback>{reply.author[0]}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <span className="font-semibold block text-sm">{reply.author}</span>
-                                        <span className="text-xs text-muted-foreground">{reply.date}</span>
-                                    </div>
-                                </div>
-                                {(user?.id === reply.userId || profile?.role === 'admin' || profile?.role === 'moderator') && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                        onClick={() => deleteReply(reply.id)}
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                )}
-                            </div>
-                            <p className="text-sm pl-11">{reply.content}</p>
-                        </div>
-                    ))}
+                {/* 顶级回复列表 */}
+                {topLevelReplies.length > 0 ? (
+                    <div className="space-y-3">
+                        {topLevelReplies.map(reply => renderReply(reply))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
+                        暂无回复，快来抢沙发吧！
+                    </div>
+                )}
 
-                    {discussion.replies.length === 0 && (
-                        <div className="text-center py-12 text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
-                            暂无回复，快来抢沙发吧！
-                        </div>
-                    )}
-                </div>
-
+                {/* 全局回复框 */}
                 <div className="bg-card border rounded-xl p-6 shadow-sm">
                     <h4 className="font-semibold mb-4">发表回复</h4>
-                    <form onSubmit={handleSubmitReply} className="space-y-4">
+                    <form onSubmit={(e) => handleSubmitReply(e)} className="space-y-4">
                         <Textarea
-                            value={replyContent}
+                            value={replyingTo === null ? replyContent : ""}
                             onChange={(e) => setReplyContent(e.target.value)}
                             placeholder="分享你的观点..."
                             className="min-h-[120px]"
+                            disabled={replyingTo !== null}
                         />
                         <div className="flex justify-end">
-                            <Button type="submit" disabled={!replyContent.trim()}>
+                            <Button type="submit" disabled={!replyContent.trim() || replyingTo !== null}>
                                 发送回复
                             </Button>
                         </div>
                     </form>
+                    {replyingTo !== null && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                            正在回复他人，请在上方对应的回复框中输入内容
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

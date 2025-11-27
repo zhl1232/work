@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -18,12 +19,14 @@ export function ProjectCard({ project, variants }: ProjectCardProps) {
     const { isLiked, toggleLike } = useProjects();
     const { toast } = useToast();
     const liked = isLiked(project.id);
+    const [likesCount, setLikesCount] = useState(project.likes);
 
     const handleLike = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         const wasLiked = liked;
         toggleLike(project.id);
+        setLikesCount(prev => wasLiked ? prev - 1 : prev + 1);
 
         if (!wasLiked) {
             toast({
@@ -93,7 +96,7 @@ export function ProjectCard({ project, variants }: ProjectCardProps) {
                         </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Heart className={cn("h-3 w-3", liked && "fill-red-500 text-red-500")} />
-                            {project.likes}
+                            {likesCount}
                         </span>
                     </div>
                     <h3 className="font-semibold leading-none tracking-tight mb-1 group-hover:text-primary transition-colors">

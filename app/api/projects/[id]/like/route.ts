@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth, handleApiError } from '@/lib/api/auth'
+import { callRpc } from '@/lib/supabase/rpc'
 
 /**
  * POST /api/projects/[id]/like
@@ -38,21 +39,21 @@ export async function POST(
       }
       
       // 减少点赞数
-      await supabase.rpc('decrement_project_likes', { project_id: projectId })
+      await callRpc(supabase, 'decrement_project_likes', { project_id: projectId })
       
       return NextResponse.json({ liked: false, action: 'unliked' })
     } else {
       // 添加点赞
       const { error: insertError } = await supabase
         .from('likes')
-        .insert({ user_id: user.id, project_id: projectId })
+        .insert({ user_id: user.id, project_id: projectId } as any)
       
       if (insertError) {
         throw insertError
       }
       
       // 增加点赞数
-      await supabase.rpc('increment_project_likes', { project_id: projectId })
+      await callRpc(supabase, 'increment_project_likes', { project_id: projectId })
       
       return NextResponse.json({ liked: true, action: 'liked' })
     }

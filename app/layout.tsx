@@ -6,13 +6,14 @@ import { AuthProvider } from "@/context/auth-context";
 import { LoginPromptProvider } from "@/context/login-prompt-context";
 import { GamificationProvider } from "@/context/gamification-context";
 import Link from "next/link";
-import { Rocket, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Rocket } from "lucide-react";
 import { GlobalSearch } from "@/components/features/global-search";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserButton } from "@/components/user-button";
 import { MainNav } from "@/components/main-nav";
+import { NotificationProvider } from "@/context/notification-context";
+import { NotificationBell } from "@/components/notification-bell";
 
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -31,7 +32,8 @@ export default function RootLayout({
                 <AuthProvider>
                     <LoginPromptProvider>
                         <GamificationProvider>
-                            <ProjectProvider>
+                            <NotificationProvider>
+                                <ProjectProvider>
                                 <ThemeProvider
                                     attribute="class"
                                     defaultTheme="system"
@@ -57,9 +59,7 @@ export default function RootLayout({
                                                         <GlobalSearch />
                                                     </div>
                                                     <nav className="flex items-center gap-2">
-                                                        <Button variant="ghost" size="icon" className="text-muted-foreground">
-                                                            <Bell className="h-5 w-5" />
-                                                        </Button>
+                                                        <NotificationBell />
                                                         <UserButton />
                                                     </nav>
                                                 </div>
@@ -70,7 +70,8 @@ export default function RootLayout({
                                     </div>
                                     <Toaster />
                                 </ThemeProvider>
-                            </ProjectProvider>
+                                </ProjectProvider>
+                            </NotificationProvider>
                         </GamificationProvider>
                     </LoginPromptProvider>
                 </AuthProvider>

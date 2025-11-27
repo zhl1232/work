@@ -8,18 +8,29 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ProjectCard } from '@/components/features/project-card'
 import { EditProfileDialog } from '@/components/features/profile/edit-profile-dialog'
-import { Award, Loader2 } from 'lucide-react'
+import { ProfileSkeleton } from '@/components/features/profile/profile-skeleton'
+import { ProjectListSkeleton } from '@/components/features/profile/project-list-skeleton'
+import { Award } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGamification, BADGES } from '@/context/gamification-context'
 import { LevelProgress } from '@/components/features/gamification/level-progress'
+import { createClient } from '@/lib/supabase/client'
+import type { Project } from '@/context/project-context'
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth()
-  const { projects, likedProjects, completedProjects } = useProjects()
+  const { likedProjects, completedProjects } = useProjects()
   const [activeTab, setActiveTab] = useState<'my-projects' | 'liked' | 'completed'>('liked')
   const { unlockedBadges } = useGamification()
   const router = useRouter()
+  const supabase = createClient()
+
+  // 独立加载的项目列表
+  const [myProjects, setMyProjects] = useState<Project[]>([])
+  const [likedProjectsList, setLikedProjectsList] = useState<Project[]>([])
+  const [completedProjectsList, setCompletedProjectsList] = useState<Project[]>([])
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // 如果未登录，重定向到登录页
   useEffect(() => {
@@ -28,12 +39,97 @@ export default function ProfilePage() {
     }
   }, [user, authLoading, router])
 
+  // 加载用户的项目数据
+  useEffect(() => {
+    if (!user) return
+
+    const loadUserProjects = async () => {
+      // 加载用户发布的项目
+      const { data: myProjectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('author_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (myProjectsData) {
+        setMyProjects(myProjectsData.map(p => ({
+          id: p.id,
+          title: p.title,
+          author: profile?.display_name || '',
+          author_id: p.author_id,
+          image: p.image_url || '',
+          category: p.category || '',
+          likes: p.likes_count,
+          description: p.description || ''
+        })))
+      }
+
+      // 加载用户收藏的项目
+      if (likedProjects.size > 0) {
+        const likedIds = Array.from(likedProjects)
+        const { data: likedData } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            profiles:author_id (display_name)
+          `)
+          .in('id', likedIds)
+          .order('created_at', { ascending: false })
+
+        if (likedData) {
+          setLikedProjectsList(likedData.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            author: p.profiles?.display_name || '',
+            author_id: p.author_id,
+            image: p.image_url || '',
+            category: p.category || '',
+            likes: p.likes_count,
+            description: p.description || ''
+          })))
+        }
+      } else {
+        setLikedProjectsList([])
+      }
+
+      // 加载用户完成的项目
+      if (completedProjects.size > 0) {
+        const completedIds = Array.from(completedProjects)
+        const { data: completedData } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            profiles:author_id (display_name)
+          `)
+          .in('id', completedIds)
+          .order('created_at', { ascending: false })
+
+        if (completedData) {
+          setCompletedProjectsList(completedData.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            author: p.profiles?.display_name || '',
+            author_id: p.author_id,
+            image: p.image_url || '',
+            category: p.category || '',
+            likes: p.likes_count,
+            description: p.description || ''
+          })))
+        }
+      } else {
+        setCompletedProjectsList([])
+      }
+
+      setIsInitialLoad(false)
+    }
+
+    loadUserProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, likedProjects, completedProjects, profile?.display_name])
+
+
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
+    return <ProfileSkeleton />
   }
 
   if (!user) {
@@ -44,11 +140,6 @@ export default function ProfilePage() {
   const userName = profile?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '未命名用户'
   const userAvatar = profile?.avatar_url || user.user_metadata?.avatar_url || null
   const userEmail = user.email || ''
-
-  // 过滤用户相关的项目
-  const myProjects = projects.filter(p => p.author_id === user.id)
-  const likedProjectsList = projects.filter(p => likedProjects.has(p.id))
-  const completedProjectsList = projects.filter(p => completedProjects.has(p.id))
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -189,38 +280,48 @@ export default function ProfilePage() {
 
       {/* 项目列表 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {activeTab === 'my-projects' && myProjects.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <p className="mb-4">你还没有发布任何项目</p>
-            <Link href="/share">
-              <Button>分享你的第一个项目</Button>
-            </Link>
-          </div>
-        )}
-        {activeTab === 'my-projects' &&
-          myProjects.map((project) => <ProjectCard key={project.id} project={project} />)}
+        {/* 判断是否正在加载 */}
+        {isInitialLoad || 
+         (activeTab === 'my-projects' && isInitialLoad) ||
+         (activeTab === 'liked' && likedProjects.size > 0 && likedProjectsList.length === 0) ||
+         (activeTab === 'completed' && completedProjects.size > 0 && completedProjectsList.length === 0) ? (
+          <ProjectListSkeleton />
+        ) : (
+          <>
+            {activeTab === 'my-projects' && myProjects.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <p className="mb-4">你还没有发布任何项目</p>
+                <Link href="/share">
+                  <Button>分享你的第一个项目</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'my-projects' &&
+              myProjects.map((project) => <ProjectCard key={project.id} project={project} />)}
 
-        {activeTab === 'liked' && likedProjectsList.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <p className="mb-4">你还没有收藏任何项目</p>
-            <Link href="/explore">
-              <Button>去发现有趣的项目</Button>
-            </Link>
-          </div>
-        )}
-        {activeTab === 'liked' &&
-          likedProjectsList.map((project) => <ProjectCard key={project.id} project={project} />)}
+            {activeTab === 'liked' && likedProjectsList.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <p className="mb-4">你还没有收藏任何项目</p>
+                <Link href="/explore">
+                  <Button>去发现有趣的项目</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'liked' &&
+              likedProjectsList.map((project) => <ProjectCard key={project.id} project={project} />)}
 
-        {activeTab === 'completed' && completedProjectsList.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <p className="mb-4">你还没有完成任何项目</p>
-            <Link href="/explore">
-              <Button>开始你的第一个项目</Button>
-            </Link>
-          </div>
+            {activeTab === 'completed' && completedProjectsList.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <p className="mb-4">你还没有完成任何项目</p>
+                <Link href="/explore">
+                  <Button>开始你的第一个项目</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'completed' &&
+              completedProjectsList.map((project) => <ProjectCard key={project.id} project={project} />)}
+          </>
         )}
-        {activeTab === 'completed' &&
-          completedProjectsList.map((project) => <ProjectCard key={project.id} project={project} />)}
       </div>
     </div>
   )
