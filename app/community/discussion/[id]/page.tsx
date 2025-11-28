@@ -1,18 +1,21 @@
 "use client";
 
-import { useProjects, Comment as ProjectComment, Discussion } from "@/context/project-context";
+import { useCommunity } from "@/context/community-context";
+import { Discussion, Comment as ProjectComment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Heart, Tag, ArrowLeft, User, Calendar, Trash2, Reply } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-context";
+import { useLoginPrompt } from "@/context/login-prompt-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
-    const { discussions, addReply, deleteReply } = useProjects();
+    const { discussions, addReply, deleteReply } = useCommunity();
     const { user, profile } = useAuth(); 
+    const { promptLogin } = useLoginPrompt();
     
     const router = useRouter();
     const [replyContent, setReplyContent] = useState("");
@@ -91,7 +94,7 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
         };
 
         fetchDiscussion();
-    }, [id, discussions]);
+    }, [id, discussions, supabase]);
 
     // Scroll to hash anchor on load
     useEffect(() => {
@@ -148,26 +151,40 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
         e.preventDefault();
         if (!replyContent.trim()) return;
 
-        const addedReply = await addReply(discussion.id, {
-            id: 0,
-            author: "Me",
-            content: replyContent,
-            date: "",
-            reply_to_user_id: replyToUserId,
-            reply_to_username: replyToUsername,
-        }, parentId);
+        const submitReply = async () => {
+             const addedReply = await addReply(discussion.id, {
+                id: 0,
+                author: "Me",
+                content: replyContent,
+                date: "",
+                reply_to_user_id: replyToUserId,
+                reply_to_username: replyToUsername,
+            }, parentId);
 
-        if (addedReply) {
-            setDiscussion((prev) => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    replies: [addedReply, ...prev.replies]
-                };
+            if (addedReply) {
+                setDiscussion((prev) => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        replies: [addedReply, ...prev.replies]
+                    };
+                });
+                setReplyContent("");
+                setReplyingTo(null);
+            }
+        };
+
+        if (!user) {
+            promptLogin(() => {
+                submitReply();
+            }, {
+                title: '登录以发表回复',
+                description: '登录后即可参与讨论，分享你的观点'
             });
-            setReplyContent("");
-            setReplyingTo(null);
+            return;
         }
+
+        submitReply();
     };
 
     const handleCancelReply = () => {

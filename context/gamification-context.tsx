@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AchievementToast } from "@/components/features/gamification/achievement-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -76,7 +76,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     const [xp, setXp] = useState(0);
     const [unlockedBadges, setUnlockedBadges] = useState<Set<string>>(new Set());
     const { toast } = useToast();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
     const { user } = useAuth();
 
     // Load from Supabase
@@ -111,7 +111,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         };
 
         fetchData();
-    }, [user]);
+    }, [supabase, user]);
 
     // Level Calculation: Level = floor(sqrt(XP / 100)) + 1
     // XP = 100 * (Level - 1)^2
@@ -122,7 +122,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     const levelTotalNeeded = nextLevelXp - currentLevelBaseXp;
     const progress = (levelProgress / levelTotalNeeded) * 100;
 
-    const addXp = async (amount: number, _reason?: string) => {
+    const addXp = useCallback(async (amount: number, _reason?: string) => {
         if (!user) return;
 
         const newXp = xp + amount;
@@ -154,9 +154,9 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
             console.error('Failed to update XP:', error);
             // Revert optimistic update if needed, but for XP it might be okay to just log error
         }
-    };
+    }, [user, xp, supabase, toast]);
 
-    const checkBadges = async (stats: UserStats) => {
+    const checkBadges = useCallback(async (stats: UserStats) => {
         if (!user) return;
 
         BADGES.forEach(async (badge) => {
@@ -192,18 +192,20 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 }
             }
         });
-    };
+    }, [user, unlockedBadges, supabase, toast]);
+
+    const contextValue = useMemo(() => ({ 
+        xp, 
+        level, 
+        unlockedBadges, 
+        addXp, 
+        checkBadges,
+        nextLevelXp,
+        progress
+    }), [xp, level, unlockedBadges, addXp, checkBadges, nextLevelXp, progress]);
 
     return (
-        <GamificationContext.Provider value={{ 
-            xp, 
-            level, 
-            unlockedBadges, 
-            addXp, 
-            checkBadges,
-            nextLevelXp,
-            progress
-        }}>
+        <GamificationContext.Provider value={contextValue}>
             {children}
         </GamificationContext.Provider>
     );

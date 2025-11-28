@@ -2,15 +2,15 @@
 
 import Head from "next/head";
 import { useState } from "react";
-import { useProjects } from "@/context/project-context";
+import { useCommunity } from "@/context/community-context";
 import { DiscussionList } from "@/components/features/community/discussion-list";
 import { ChallengeCard } from "@/components/features/community/challenge-card";
-import { Button } from "@/components/ui/button";
+
 import { MessageSquare, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function CommunityPage() {
-    const { challenges } = useProjects();
+    const { challenges } = useCommunity();
     const [activeTab, setActiveTab] = useState<"discussions" | "challenges">("discussions");
 
     return (

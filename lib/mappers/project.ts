@@ -3,12 +3,15 @@
  * 统一处理从数据库到应用层的数据转换
  */
 
-import type { Project, Comment } from '@/context/project-context'
+import type { Project, Comment } from '@/lib/types'
 
 /**
  * 数据库项目类型（简化版，包含常见字段）
  */
-type DbProject = {
+/**
+ * 数据库项目类型（简化版，包含常见字段）
+ */
+export type DbProject = {
   id: number
   title: string
   author_id: string
@@ -33,7 +36,7 @@ type DbProject = {
   comments?: Array<DbComment> | null
 }
 
-type DbComment = {
+export type DbComment = {
   id: number
   author_id: string
   content: string

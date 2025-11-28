@@ -1,4 +1,5 @@
-import { Challenge, useProjects } from "@/context/project-context";
+import { useCommunity } from "@/context/community-context";
+import { Challenge } from "@/lib/types";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ interface ChallengeCardProps {
 }
 
 export function ChallengeCard({ challenge }: ChallengeCardProps) {
-    const { joinChallenge } = useProjects();
+    const { joinChallenge } = useCommunity();
 
     return (
         <div className="group relative overflow-hidden rounded-xl border bg-white/70 dark:bg-gray-800/70 backdrop-blur-md text-card-foreground shadow-sm transition-all hover:shadow-lg hover:scale-105 transform">

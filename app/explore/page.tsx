@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { AdvancedSearch } from "@/components/features/advanced-search";
 import { createClient } from "@/lib/supabase/client";
-import { Project } from "@/context/project-context";
+import { Project } from "@/lib/types";
 import { useState, useRef, useCallback, useEffect } from "react";
 
 

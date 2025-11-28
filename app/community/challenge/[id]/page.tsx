@@ -1,15 +1,20 @@
 "use client";
 
-import { useProjects } from "@/context/project-context";
+import { useCommunity } from "@/context/community-context";
+
 import { Button } from "@/components/ui/button";
 import { Users, Clock, Trophy, ArrowLeft, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useAuth } from "@/context/auth-context";
+import { useLoginPrompt } from "@/context/login-prompt-context";
 
 export default function ChallengeDetailPage({ params }: { params: { id: string } }) {
-    const { challenges, joinChallenge } = useProjects();
+    const { challenges, joinChallenge } = useCommunity();
+    const { user } = useAuth();
+    const { promptLogin } = useLoginPrompt();
     const router = useRouter();
     const [id, setId] = useState<string | number | null>(null);
 
@@ -101,7 +106,16 @@ export default function ChallengeDetailPage({ params }: { params: { id: string }
                             </div>
 
                             <Button
-                                onClick={() => joinChallenge(challenge.id)}
+                                onClick={() => {
+                                    if (!user) {
+                                        promptLogin(() => joinChallenge(challenge.id), {
+                                            title: '登录以参与挑战',
+                                            description: '登录后即可报名参与挑战，赢取徽章'
+                                        });
+                                        return;
+                                    }
+                                    joinChallenge(challenge.id);
+                                }}
                                 className={cn(
                                     "w-full h-12 text-lg font-semibold transition-all",
                                     challenge.joined ? "bg-green-600 hover:bg-green-700 text-white" : ""

@@ -1,60 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { callRpc } from "@/lib/supabase/rpc";
 import { useAuth } from "@/context/auth-context";
 import { useGamification } from "@/context/gamification-context";
 import { useNotifications } from "@/context/notification-context";
-import { mapProjectWithDetails, mapComment } from "@/lib/mappers/project";
-
-export type Comment = {
-    id: string | number;
-    author: string;
-    userId?: string;
-    avatar?: string;
-    content: string;
-    date: string;
-    parent_id?: number | null;
-    reply_to_user_id?: string | null;
-    reply_to_username?: string | null;
-};
-
-export type Discussion = {
-    id: string | number;
-    title: string;
-    author: string;
-    content: string;
-    date: string;
-    replies: Comment[];
-    likes: number;
-    tags: string[];
-};
-
-export type Challenge = {
-    id: string | number;
-    title: string;
-    description: string;
-    image: string;
-    participants: number;
-    daysLeft: number;
-    joined: boolean;
-    tags: string[];
-};
-
-export type Project = {
-    id: string | number;
-    title: string;
-    author: string;
-    author_id: string; // Added for reliable ownership check
-    image: string;
-    category: string;
-    likes: number;
-    description?: string;
-    materials?: string[];
-    steps?: { title: string; description: string }[];
-    comments?: Comment[];
-};
+import { mapComment, type DbComment } from "@/lib/mappers/project";
+import { Project, Comment } from "@/lib/types";
 
 type ProjectContextType = {
     projects: Project[];
@@ -66,14 +19,7 @@ type ProjectContextType = {
     isLiked: (projectId: string | number) => boolean;
     toggleProjectCompleted: (projectId: string | number) => void;
     isCompleted: (projectId: string | number) => boolean;
-    discussions: Discussion[];
-    challenges: Challenge[];
-    addDiscussion: (discussion: Discussion) => void;
-    addReply: (discussionId: string | number, reply: Comment, parentId?: number) => Promise<Comment | null>;
-    joinChallenge: (challengeId: string | number) => void;
     deleteComment: (commentId: string | number) => Promise<void>;
-    deleteReply: (replyId: string | number) => Promise<void>;
-    deleteDiscussion: (discussionId: string | number) => Promise<void>;
     isLoading: boolean;
 };
 
@@ -85,115 +31,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [likedProjects, setLikedProjects] = useState<Set<string | number>>(new Set());
     const [completedProjects, setCompletedProjects] = useState<Set<string | number>>(new Set());
-    const [discussions, setDiscussions] = useState<Discussion[]>([]);
-    const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
     const { user, profile } = useAuth();
     const { addXp, checkBadges } = useGamification();
     const { createNotification } = useNotifications();
 
-    const fetchProjects = async () => {
-        const { data, error } = await supabase
-            .from('projects')
-            .select(`
-                *,
-                profiles:author_id (display_name, username),
-                project_materials (*),
-                project_steps (*),
-                comments (
-                    *,
-                    profiles:author_id (display_name, username, avatar_url)
-                )
-            `)
-            .order('created_at', { ascending: false, foreignTable: 'comments' })
-            .order('id', { ascending: true, foreignTable: 'comments' })
-            .order('created_at', { ascending: false });
+    // Refs for stable callbacks
+    const likedProjectsRef = useRef(likedProjects);
+    const completedProjectsRef = useRef(completedProjects);
 
-        if (error) {
-            console.error('Error fetching projects:', error);
-            return;
-        }
+    useEffect(() => { likedProjectsRef.current = likedProjects; }, [likedProjects]);
+    useEffect(() => { completedProjectsRef.current = completedProjects; }, [completedProjects]);
 
-        // 使用统一的映射函数
-        const mappedProjects: Project[] = data.map((p: any) => mapProjectWithDetails(p));
-        setProjects(mappedProjects);
-    };
 
-    const fetchDiscussions = async () => {
-        const { data, error } = await supabase
-            .from('discussions')
-            .select(`
-                *,
-                profiles:author_id (display_name, username),
-                discussion_replies (
-                    *,
-                    profiles:author_id (display_name, username, avatar_url)
-                )
-            `)
-            .order('created_at', { ascending: false, foreignTable: 'discussion_replies' })
-            .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching discussions:', error);
-            return;
-        }
 
-        const mappedDiscussions: Discussion[] = data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            author: d.profiles?.display_name || d.profiles?.username || 'Unknown',
-            content: d.content,
-            date: new Date(d.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
-            likes: d.likes_count,
-            tags: d.tags || [],
-            // 使用统一的映射函数处理回复
-            replies: d.discussion_replies?.map((r: any) => mapComment(r)) || []
-        }));
 
-        setDiscussions(mappedDiscussions);
-    };
 
-    const fetchChallenges = async () => {
-        const { data, error } = await supabase
-            .from('challenges')
-            .select('*')
-            .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching challenges:', error);
-            return;
-        }
-
-        // Check joined status if user is logged in
-        let joinedChallengeIds = new Set<number>();
-        if (user) {
-            const { data: participants } = await supabase
-                .from('challenge_participants')
-                .select('challenge_id')
-                .eq('user_id', user.id);
-            
-            if (participants) {
-                participants.forEach(p => joinedChallengeIds.add(p.challenge_id));
-            }
-        }
-
-        const mappedChallenges: Challenge[] = data.map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            description: c.description || '',
-            image: c.image_url || '',
-            participants: c.participants_count,
-            daysLeft: c.end_date ? Math.ceil((new Date(c.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
-            joined: joinedChallengeIds.has(c.id),
-            tags: c.tags || []
-        }));
-
-        setChallenges(mappedChallenges);
-    };
-
-    const fetchUserInteractions = async () => {
+    const fetchUserInteractions = useCallback(async () => {
         if (!user) {
             setLikedProjects(new Set());
             setCompletedProjects(new Set());
@@ -217,27 +75,24 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (completed) {
             setCompletedProjects(new Set(completed.map(c => c.project_id)));
         }
-    };
+    }, [supabase, user]);
 
     useEffect(() => {
         const initData = async () => {
             setIsLoading(true);
-            // Only fetch challenges globally for now as they are small and used in CommunityPage
-            await fetchChallenges();
+            // No global fetch needed for projects anymore
             setIsLoading(false);
         };
         initData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
-        fetchUserInteractions();
-        // Refresh challenges to update joined status
-        fetchChallenges();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+        if (user?.id) {
+            fetchUserInteractions();
+        }
+    }, [user?.id, fetchUserInteractions]);
 
-    const getUserStats = async () => {
+    const getUserStats = useCallback(async () => {
         if (!user) return { projectsPublished: 0, projectsLiked: 0, projectsCompleted: 0, commentsCount: 0 };
 
         const { count: publishedCount } = await supabase
@@ -252,13 +107,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         return {
             projectsPublished: publishedCount || 0,
-            projectsLiked: likedProjects.size,
-            projectsCompleted: completedProjects.size,
+            projectsLiked: likedProjectsRef.current.size,
+            projectsCompleted: completedProjectsRef.current.size,
             commentsCount: commentsCount || 0
         };
-    };
+    }, [supabase, user]);
 
-    const addProject = async (project: Project) => {
+    const addProject = useCallback(async (project: Project) => {
         if (!user) return;
 
         // 1. Insert Project
@@ -314,10 +169,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             projectsPublished: stats.projectsPublished + 1
         });
 
-        fetchProjects();
-    };
+        // fetchProjects(); // Removed
+    }, [supabase, user, addXp, checkBadges, getUserStats]);
 
-    const addComment = async (projectId: string | number, comment: Comment, parentId?: number) => {
+    const addComment = useCallback(async (projectId: string | number, comment: Comment, parentId?: number) => {
         if (!user) return null;
 
         const { data: newComment, error } = await supabase
@@ -367,14 +222,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         });
 
         // 使用统一的映射函数
-        return mapComment(newComment as any);
-    };
+        return mapComment(newComment as unknown as DbComment);
+    }, [supabase, user, profile, createNotification, addXp, checkBadges, getUserStats]);
 
-    const toggleLike = async (projectId: string | number) => {
+    const toggleLike = useCallback(async (projectId: string | number) => {
         if (!user) return;
         const pid = typeof projectId === 'string' ? parseInt(projectId) : projectId;
 
-        const isLiked = likedProjects.has(projectId);
+        const isLiked = likedProjectsRef.current.has(projectId);
         
         // Optimistic update
         setLikedProjects(prev => {
@@ -398,12 +253,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             await supabase.from('likes').insert({ user_id: user.id, project_id: pid });
             await callRpc(supabase, 'increment_project_likes', { project_id: pid });
         }
-    };
+    }, [supabase, user]);
 
-    const toggleProjectCompleted = async (projectId: string | number) => {
+    const toggleProjectCompleted = useCallback(async (projectId: string | number) => {
         if (!user) return;
         const pid = projectId;
-        const isCompleted = completedProjects.has(pid);
+        const isCompleted = completedProjectsRef.current.has(pid);
 
         // Optimistic update
         setCompletedProjects(prev => {
@@ -425,110 +280,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             const stats = await getUserStats();
             checkBadges({
                 ...stats,
-                projectsCompleted: completedProjects.size + 1
+                projectsCompleted: completedProjectsRef.current.size + 1
             });
         }
-    };
+    }, [supabase, user, addXp, checkBadges, getUserStats]);
 
-    const isLiked = (projectId: string | number) => likedProjects.has(projectId);
-    const isCompleted = (projectId: string | number) => completedProjects.has(projectId);
+    const isLiked = useCallback((projectId: string | number) => likedProjects.has(projectId), [likedProjects]);
+    const isCompleted = useCallback((projectId: string | number) => completedProjects.has(projectId), [completedProjects]);
 
-    const addDiscussion = async (discussion: Discussion) => {
-        if (!user) return;
 
-        await supabase
-            .from('discussions')
-            .insert({
-                title: discussion.title,
-                content: discussion.content,
-                author_id: user.id,
-                tags: discussion.tags
-            });
 
-        fetchDiscussions();
-    };
-
-    const addReply = async (discussionId: string | number, reply: Comment, parentId?: number) => {
-        if (!user) return null;
-
-        const { data: newReply, error } = await supabase
-            .from('discussion_replies')
-            .insert({
-                discussion_id: discussionId,
-                author_id: user.id,
-                content: reply.content,
-                parent_id: parentId || null,
-                reply_to_user_id: reply.reply_to_user_id || null,
-                reply_to_username: reply.reply_to_username || null
-            })
-            .select(`
-                *,
-                profiles:author_id (display_name, avatar_url)
-            `)
-            .single();
-
-        if (error || !newReply) {
-            console.error('Error adding reply:', error);
-            return null;
-        }
-
-        // Create notification if replying to someone
-        if (reply.reply_to_user_id) {
-            await createNotification({
-                user_id: reply.reply_to_user_id,
-                type: 'mention',
-                content: `${profile?.display_name || '某人'} 在讨论中@了你`,
-                related_type: 'discussion_reply',
-                related_id: newReply.id,
-                discussion_id: Number(discussionId),
-                from_user_id: user.id,
-                from_username: profile?.display_name || user.email?.split('@')[0] || '未知用户',
-                from_avatar: profile?.avatar_url || user.user_metadata?.avatar_url
-            });
-        }
-
-        // Award XP for replying
-        addXp(5, "回复讨论");
-
-        // 使用统一的映射函数
-        return mapComment(newReply as any);
-    };
-
-    const joinChallenge = async (challengeId: string | number) => {
-        if (!user) return;
-        const cid = Number(challengeId);
-        
-        // Find current challenge to check status
-        const challenge = challenges.find(c => c.id === cid);
-        if (!challenge) return;
-
-        const isJoined = challenge.joined;
-
-        // Optimistic update
-        setChallenges(prev => prev.map(c => {
-            if (c.id === cid) {
-                return { ...c, joined: !isJoined, participants: c.participants + (isJoined ? -1 : 1) };
-            }
-            return c;
-        }));
-
-        if (isJoined) {
-            // Leave
-            // Note: Schema doesn't have a delete policy for participants yet? 
-            // Actually it does: "Users can join challenges" (INSERT). But maybe not DELETE?
-            // Let's assume we can delete.
-            // Wait, I didn't see a DELETE policy for challenge_participants in schema.
-            // I should check schema.
-            await supabase.from('challenge_participants').delete().eq('user_id', user.id).eq('challenge_id', cid);
-            await callRpc(supabase, 'decrement_challenge_participants', { challenge_id: cid });
-        } else {
-            // Join
-            await supabase.from('challenge_participants').insert({ user_id: user.id, challenge_id: cid });
-            await callRpc(supabase, 'increment_challenge_participants', { challenge_id: cid });
-        }
-    };
-
-    const deleteComment = async (commentId: string | number) => {
+    const deleteComment = useCallback(async (commentId: string | number) => {
         if (!user) return;
         const cid = commentId;
 
@@ -549,74 +311,41 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         if (!response.ok) {
             console.error('Error deleting comment:', await response.text());
-            // Revert optimistic update if needed, but for now let's just fetch
-            fetchProjects();
+            // Revert optimistic update if needed
         }
-    };
+    }, [user]);
 
-    const deleteReply = async (replyId: string | number) => {
-        if (!user) return;
-        const rid = replyId;
 
-        // Optimistic update
-        setDiscussions(prev => prev.map(d => {
-            if (d.replies?.some(r => r.id === rid)) {
-                return {
-                    ...d,
-                    replies: d.replies.filter(r => r.id !== rid)
-                };
-            }
-            return d;
-        }));
 
-        const response = await fetch(`/api/replies/${rid}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            console.error('Error deleting reply:', await response.text());
-            fetchDiscussions();
-        }
-    };
-
-    const deleteDiscussion = async (discussionId: string | number) => {
-        if (!user) return;
-        const did = discussionId;
-
-        // Optimistic update
-        setDiscussions(prev => prev.filter(d => d.id !== did));
-
-        const response = await fetch(`/api/discussions/${did}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            console.error('Error deleting discussion:', await response.text());
-            fetchDiscussions();
-        }
-    };
+    // 使用 useMemo 缓存 Context 值，避免每次渲染都创建新对象
+    const contextValue = useMemo(() => ({
+        projects,
+        likedProjects,
+        completedProjects,
+        addProject,
+        addComment,
+        toggleLike,
+        isLiked,
+        toggleProjectCompleted,
+        isCompleted,
+        deleteComment,
+        isLoading
+    }), [
+        projects,
+        likedProjects,
+        completedProjects,
+        addProject,
+        addComment,
+        toggleLike,
+        isLiked,
+        toggleProjectCompleted,
+        isCompleted,
+        deleteComment,
+        isLoading
+    ]);
 
     return (
-        <ProjectContext.Provider value={{
-            projects,
-            likedProjects,
-            completedProjects,
-            addProject,
-            addComment,
-            toggleLike,
-            isLiked,
-            toggleProjectCompleted,
-            isCompleted,
-            discussions,
-            challenges,
-            addDiscussion,
-            addReply,
-            joinChallenge,
-            deleteComment,
-            deleteReply,
-            deleteDiscussion,
-            isLoading
-        }}>
+        <ProjectContext.Provider value={contextValue}>
             {children}
         </ProjectContext.Provider>
     );

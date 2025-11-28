@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Discussion } from "@/context/project-context";
+import { Discussion } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Heart, Tag, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { useLoginPrompt } from "@/context/login-prompt-context";
 import { createClient } from "@/lib/supabase/client";
 
 export function DiscussionList() {
     const { user, profile } = useAuth();
+    const { promptLogin } = useLoginPrompt();
     const [isCreating, setIsCreating] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -122,7 +124,16 @@ export function DiscussionList() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">讨论区</h2>
-                <Button onClick={() => setIsCreating(!isCreating)}>
+                <Button onClick={() => {
+                    if (!user && !isCreating) {
+                        promptLogin(() => setIsCreating(true), {
+                            title: '登录以发起讨论',
+                            description: '登录后即可发起新的讨论话题'
+                        });
+                        return;
+                    }
+                    setIsCreating(!isCreating);
+                }}>
                     {isCreating ? "取消" : "发起讨论"}
                 </Button>
             </div>

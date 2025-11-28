@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation'
 import { useGamification, BADGES } from '@/context/gamification-context'
 import { LevelProgress } from '@/components/features/gamification/level-progress'
 import { createClient } from '@/lib/supabase/client'
-import type { Project } from '@/context/project-context'
+import type { Project } from '@/lib/types'
 import { mapProject } from '@/lib/mappers/project'
 
 export default function ProfilePage() {

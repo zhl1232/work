@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send, Trash2 } from "lucide-react";
 import { ConfettiButton } from "@/components/ui/confetti-button";
-import { useProjects, Comment as ProjectComment, Project } from "@/context/project-context";
+import { useProjects } from "@/context/project-context";
+import { Project, Comment as ProjectComment } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
@@ -396,7 +397,16 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                                            onClick={() => deleteComment(comment.id)}
+                                                                            onClick={async () => {
+                                                                                await deleteComment(comment.id);
+                                                                                setProject(prev => {
+                                                                                    if (!prev) return null;
+                                                                                    return {
+                                                                                        ...prev,
+                                                                                        comments: prev.comments?.filter(c => c.id !== comment.id)
+                                                                                    };
+                                                                                });
+                                                                            }}
                                                                         >
                                                                             <Trash2 className="h-3 w-3" />
                                                                         </Button>

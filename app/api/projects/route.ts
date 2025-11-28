@@ -7,10 +7,15 @@ import {
   validateArray,
 } from '@/lib/api/validation'
 import type { 
-  ProjectStep, 
-  ProjectMaterialInsert, 
-  ProjectStepInsert 
+  ProjectStep
 } from '@/lib/api/types'
+import type { Database } from '@/lib/supabase/types'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+type ProjectInsert = Database['public']['Tables']['projects']['Insert']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type MaterialInsert = Database['public']['Tables']['project_materials']['Insert']
+type StepInsert = Database['public']['Tables']['project_steps']['Insert']
 
 const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as const
 
@@ -20,7 +25,7 @@ const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as c
  * 需要认证
  */
 export async function POST(request: Request) {
-  const supabase = createClient()
+  const supabase: SupabaseClient<Database> = createClient()
   
   try {
     // 检查用户认证
@@ -55,19 +60,21 @@ export async function POST(request: Request) {
         })
       : []
     
-    // 创建项目（Supabase类型系统需要as any）
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .insert({
+    // 创建项目
+    const newProject: ProjectInsert = {
         title,
         description,
         category,
         image_url,
         author_id: user.id,
-        status: 'pending', // 新项目默认为待审核状态
-      } as any)
+        status: 'pending',
+    }
+
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .insert(newProject as any)
       .select()
-      .single() as any
+      .single() as unknown as { data: ProjectRow | null, error: any }
     
     if (projectError || !project) {
       throw projectError || new Error('Failed to create project')
@@ -78,7 +85,7 @@ export async function POST(request: Request) {
 
     // 添加材料
     if (materials.length > 0) {
-      const materialInserts: ProjectMaterialInsert[] = materials.map((material, index) => ({
+      const materialInserts: MaterialInsert[] = materials.map((material, index) => ({
         project_id: project.id,
         material,
         sort_order: index,
@@ -96,7 +103,7 @@ export async function POST(request: Request) {
     
     // 添加步骤
     if (steps.length > 0) {
-      const stepInserts: ProjectStepInsert[] = steps.map((step, index) => ({
+      const stepInserts: StepInsert[] = steps.map((step, index) => ({
         project_id: project.id,
         title: step.title,
         description: step.description,
