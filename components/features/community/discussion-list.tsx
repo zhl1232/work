@@ -8,6 +8,7 @@ import { MessageSquare, Heart, Tag, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
 import { createClient } from "@/lib/supabase/client";
+import { formatRelativeTime } from "@/lib/date-utils";
 
 export function DiscussionList() {
     const { user, profile } = useAuth();
@@ -54,7 +55,7 @@ export function DiscussionList() {
             title: d.title,
             author: d.profiles?.display_name || 'Unknown',
             content: d.content,
-            date: new Date(d.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+            date: formatRelativeTime(d.created_at),
             likes: d.likes_count,
             tags: d.tags || [],
             replies: Array(d.discussion_replies[0]?.count || 0).fill({}), // Mock array for length count

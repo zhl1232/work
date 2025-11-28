@@ -11,6 +11,7 @@ import { useLoginPrompt } from "@/context/login-prompt-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatRelativeTime } from "@/lib/date-utils";
 
 export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
     const { discussions, addReply, deleteReply } = useCommunity();
@@ -73,7 +74,7 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
                 title: data.title,
                 author: data.profiles?.display_name || 'Unknown',
                 content: data.content,
-                date: new Date(data.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+                date: formatRelativeTime(data.created_at),
                 likes: data.likes_count,
                 tags: data.tags || [],
                 replies: data.discussion_replies?.map((r: any) => ({
@@ -82,7 +83,7 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
                     userId: r.author_id,
                     avatar: r.profiles?.avatar_url,
                     content: r.content,
-                    date: new Date(r.created_at).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    date: formatRelativeTime(r.created_at),
                     parent_id: r.parent_id,
                     reply_to_user_id: r.reply_to_user_id,
                     reply_to_username: r.reply_to_username
