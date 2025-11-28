@@ -125,7 +125,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 author_id: user.id,
                 image_url: project.image,
                 category: project.category,
-                likes_count: 0
+                likes_count: 0,
+                difficulty: project.difficulty,
+                duration: project.duration,
+                tags: project.tags || []
             })
             .select()
             .single();

@@ -44,4 +44,9 @@ export type Project = {
     materials?: string[];
     steps?: { title: string; description: string }[];
     comments?: Comment[];
+    // 搜索功能相关字段
+    difficulty?: 'easy' | 'medium' | 'hard';
+    duration?: number; // 预计完成时长（分钟）
+    tags?: string[];
 };
+
