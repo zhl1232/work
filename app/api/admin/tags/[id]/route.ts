@@ -9,15 +9,16 @@ import { requireRole, handleApiError } from '@/lib/api/auth'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     // 检查用户权限
     await requireRole(supabase, ['moderator', 'admin'])
     
-    const tagId = parseInt(params.id)
+    const { id } = await params
+    const tagId = parseInt(id)
     
     const { error } = await (supabase
       .from('tags') as any)

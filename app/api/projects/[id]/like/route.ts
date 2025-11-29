@@ -9,10 +9,11 @@ import { callRpc } from '@/lib/supabase/rpc'
  */
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient()
-  const projectId = parseInt(params.id)
+  const supabase = await createClient()
+  const { id } = await params
+  const projectId = parseInt(id)
   
   try {
     // 检查用户认证
@@ -68,10 +69,11 @@ export async function POST(
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient()
-  const projectId = parseInt(params.id)
+  const supabase = await createClient()
+  const { id } = await params
+  const projectId = parseInt(id)
   
   const { data: { user } } = await supabase.auth.getUser()
   

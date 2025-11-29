@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { useCommunity } from "@/context/community-context";
 import { Discussion, Comment as ProjectComment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/date-utils";
 
-export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
+export default function DiscussionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const unwrappedParams = React.use(params);
     const { discussions, addReply, deleteReply } = useCommunity();
     const { user, profile } = useAuth(); 
     const { promptLogin } = useLoginPrompt();
@@ -31,10 +34,10 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
 
     // Handle params unwrapping
     useEffect(() => {
-        if (params.id) {
-            setId(params.id);
+        if (unwrappedParams.id) {
+            setId(unwrappedParams.id);
         }
-    }, [params]);
+    }, [unwrappedParams]);
 
     // Fetch discussion
     useEffect(() => {

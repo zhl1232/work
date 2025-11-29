@@ -10,14 +10,15 @@ import { requireAuth, handleApiError } from '@/lib/api/auth'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     // 检查用户认证
     await requireAuth(supabase)
-    const discussionId = parseInt(params.id)
+    const { id } = await params
+    const discussionId = parseInt(id)
     
     // 直接执行删除,RLS 策略会自动检查权限
     // 策略: "Authors and moderators can delete discussion replies"

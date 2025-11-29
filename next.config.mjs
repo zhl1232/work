@@ -12,6 +12,10 @@ const nextConfig = {
       },
     ],
   },
+  // Turbopack configuration
+  turbopack: {
+    // Turbopack-specific options can be added here if needed
+  },
 };
 
 export default nextConfig;

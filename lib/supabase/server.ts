@@ -7,8 +7,8 @@ import type { Database } from './types'
  * 服务端 Supabase 客户端
  * 用于 Server Components 和 API Routes
  */
-export const createClient = (): SupabaseClient<Database> => {
-  const cookieStore = cookies()
+export const createClient = async (): Promise<SupabaseClient<Database>> => {
+  const cookieStore = await cookies()
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { Button } from "@/components/ui/button";
 import { Heart, Share2, MessageCircle, Play, ArrowLeft, Send, Trash2 } from "lucide-react";
 import { ConfettiButton } from "@/components/ui/confetti-button";
@@ -16,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/features/project-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const unwrappedParams = React.use(params);
     const { projects, toggleLike, isLiked, addComment, toggleProjectCompleted, isCompleted, deleteComment } = useProjects();
     const { user, profile } = useAuth();
     const { promptLogin } = useLoginPrompt();
@@ -40,7 +43,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             setIsLoading(true);
             
             // First check if it exists in context (optional, but good for cache)
-            const cachedProject = projects.find((p) => String(p.id) === params.id);
+            const cachedProject = projects.find((p) => String(p.id) === unwrappedParams.id);
             if (cachedProject) {
                 setProject(cachedProject);
                 setIsLoading(false);
@@ -60,7 +63,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                         profiles:author_id (display_name, avatar_url)
                     )
                 `)
-                .eq('id', params.id)
+                .eq('id', unwrappedParams.id)
                 .single();
 
             if (error || !data) {
@@ -119,10 +122,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             }
         };
 
-        if (params.id) {
+        if (unwrappedParams.id) {
             fetchProject();
         }
-    }, [params.id, projects]);
+    }, [unwrappedParams.id, projects]);
 
     // Scroll to hash anchor on load
     useEffect(() => {
@@ -143,13 +146,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }, [isLoading]);
 
     // Handle special case for "color-lab" and "pixel-art"
-    if (params.id === "color-lab") {
+    if (unwrappedParams.id === "color-lab") {
         if (typeof window !== "undefined") {
             router.replace("/project/color-lab");
             return null;
         }
     }
-    if (params.id === "pixel-art") {
+    if (unwrappedParams.id === "pixel-art") {
         if (typeof window !== "undefined") {
             router.replace("/project/pixel-art");
             return null;
@@ -360,7 +363,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                                         return project.comments?.filter(c => c.parent_id === parentId) || [];
                                     };
 
-                                    const renderComment = (comment: ProjectComment, isNested: boolean = false): JSX.Element => {
+                                    const renderComment = (comment: ProjectComment, isNested: boolean = false) => {
                                         const nestedComments = getNestedComments(comment.id);
                                         const isReplying = replyingTo === comment.id;
 

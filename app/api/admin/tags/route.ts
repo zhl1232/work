@@ -8,7 +8,7 @@ import { validateRequiredString, validateOptionalString } from '@/lib/api/valida
  * 获取所有标签
  */
 export async function GET() {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     const { data, error } = await supabase
@@ -33,7 +33,7 @@ export async function GET() {
  * 需要审核员或管理员权限
  */
 export async function POST(request: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     // 检查用户权限

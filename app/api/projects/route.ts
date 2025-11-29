@@ -25,7 +25,7 @@ const VALID_CATEGORIES = ['科学', '技术', '工程', '艺术', '数学'] as c
  * 需要认证
  */
 export async function POST(request: Request) {
-  const supabase: SupabaseClient<Database> = createClient()
+  const supabase: SupabaseClient<Database> = await createClient()
   
   try {
     // 检查用户认证

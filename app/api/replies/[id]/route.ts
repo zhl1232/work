@@ -10,14 +10,15 @@ import { requireAuth, handleApiError } from '@/lib/api/auth'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     // 检查用户认证
     await requireAuth(supabase)
-    const replyId = parseInt(params.id)
+    const { id } = await params
+    const replyId = parseInt(id)
     
     // 直接执行删除,RLS 策略会自动检查权限
     // 策略会检查是否为作者或管理员/版主

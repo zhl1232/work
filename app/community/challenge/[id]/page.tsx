@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { useCommunity } from "@/context/community-context";
 
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,8 @@ import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
 
-export default function ChallengeDetailPage({ params }: { params: { id: string } }) {
+export default function ChallengeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const unwrappedParams = React.use(params);
     const { challenges, joinChallenge } = useCommunity();
     const { user } = useAuth();
     const { promptLogin } = useLoginPrompt();
@@ -20,10 +23,10 @@ export default function ChallengeDetailPage({ params }: { params: { id: string }
     const [id, setId] = useState<string | number | null>(null);
 
     useEffect(() => {
-        if (params.id) {
-            setId(params.id);
+        if (unwrappedParams.id) {
+            setId(unwrappedParams.id);
         }
-    }, [params]);
+    }, [unwrappedParams]);
 
     if (!id) return null;
 
