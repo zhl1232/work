@@ -18,12 +18,13 @@ interface DiscussionSearchProps {
   availableTags?: string[];
 }
 
-export type SortOption = "newest" | "hottest" | "most_replies";
+export type SortOption = "newest" | "hottest" | "most_replies" | "latest_reply";
 
 const sortOptions: { value: SortOption; label: string }[] = [
-  { value: "newest", label: "最新" },
+  { value: "newest", label: "最新发布" },
   { value: "hottest", label: "最热门" },
   { value: "most_replies", label: "回复最多" },
+  { value: "latest_reply", label: "回复最新" },
 ];
 
 export function DiscussionSearch({ onSearch, availableTags = [] }: DiscussionSearchProps) {

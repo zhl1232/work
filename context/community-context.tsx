@@ -70,6 +70,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
             image: c.image_url || '',
             participants: c.participants_count,
             daysLeft: c.end_date ? Math.ceil((new Date(c.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+            endDate: c.end_date, // 添加原始日期用于倒计时组件
             joined: joinedChallengeIds.has(c.id),
             tags: c.tags || []
         }));

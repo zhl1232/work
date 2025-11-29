@@ -3,8 +3,9 @@ import { Challenge } from "@/lib/types";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Users, Clock, Trophy } from "lucide-react";
+import { Users, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 
 interface ChallengeCardProps {
     challenge: Challenge;
@@ -23,10 +24,13 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm">
-                        <Clock className="h-3 w-3" />
-                        还剩 {challenge.daysLeft} 天
-                    </div>
+                    {challenge.endDate && (
+                        <CountdownTimer 
+                            endDate={challenge.endDate} 
+                            compact={true}
+                            className="absolute top-2 right-2 bg-black/60 text-white px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-md"
+                        />
+                    )}
                 </div>
                 <div className="p-6 pb-2">
                     <div className="flex justify-between items-start mb-4">

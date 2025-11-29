@@ -24,6 +24,7 @@ export function DiscussionList() {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const isLoadingRef = useRef(false);
     const observer = useRef<IntersectionObserver | null>(null);
     const supabase = createClient();
 
@@ -33,81 +34,104 @@ export function DiscussionList() {
     const [sortBy, setSortBy] = useState<SortOption>("newest");
     const [availableTags, setAvailableTags] = useState<string[]>([]);
 
+    // Sync isLoading state with ref
+    useEffect(() => {
+        isLoadingRef.current = isLoading;
+    }, [isLoading]);
+
     const fetchDiscussions = useCallback(async (reset = false) => {
-        if (isLoading && !reset) return;
-        setIsLoading(true);
+        if (isLoadingRef.current && !reset) return;
+        
+        try {
+            setIsLoading(true);
 
-        const currentPage = reset ? 0 : page;
-        const PAGE_SIZE = 10;
-        const from = currentPage * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+            const PAGE_SIZE = 10;
+            let currentPage = 0;
+            
+            // Use functional update to get the latest page value
+            setPage(prev => {
+                currentPage = reset ? 0 : prev;
+                return currentPage;
+            });
+            
+            const from = currentPage * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
 
-        let query = supabase
-            .from('discussions')
-            .select(`
-                *,
-                profiles:author_id (display_name),
-                discussion_replies (count)
-            `);
+            let query = supabase
+                .from('discussions')
+                .select(`
+                    *,
+                    profiles:author_id (display_name)
+                `);
 
-        // Text search - search in title and content
-        if (searchQuery) {
-            query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
-        }
+            // Text search - search in title and content
+            if (searchQuery) {
+                query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
+            }
 
-        // Tag filter
-        if (selectedTag) {
-            query = query.contains('tags', [selectedTag]);
-        }
+            // Tag filter
+            if (selectedTag) {
+                query = query.contains('tags', [selectedTag]);
+            }
 
-        // Sorting
-        switch (sortBy) {
-            case 'hottest':
-                query = query.order('likes_count', { ascending: false });
-                break;
-            case 'most_replies':
-                // Note: This will require a more complex query with aggregate
-                // For now, we'll order by created_at and improve later
-                query = query.order('created_at', { ascending: false });
-                break;
-            case 'newest':
-            default:
-                query = query.order('created_at', { ascending: false });
-                break;
-        }
+            // Sorting
+            switch (sortBy) {
+                case 'hottest':
+                    query = query.order('likes_count', { ascending: false });
+                    break;
+                case 'most_replies':
+                    query = query.order('replies_count', { ascending: false });
+                    break;
+                case 'latest_reply':
+                    query = query.order('last_reply_at', { ascending: false, nullsFirst: false });
+                    break;
+                case 'newest':
+                default:
+                    query = query.order('created_at', { ascending: false });
+                    break;
+            }
 
-        query = query.range(from, to);
+            query = query.range(from, to);
 
-        const { data, error } = await query;
+            const { data, error } = await query;
 
-        if (error) {
-            console.error('Error fetching discussions:', error);
+            if (error) {
+                console.error('Error fetching discussions:', error);
+                return;
+            }
+
+            if (!data) {
+                console.warn('No data returned from discussions query');
+                return;
+            }
+
+            const mappedDiscussions: Discussion[] = data.map((d: any) => ({
+                id: d.id,
+                title: d.title,
+                author: d.profiles?.display_name || 'Unknown',
+                content: d.content,
+                date: formatRelativeTime(d.created_at),
+                likes: d.likes_count,
+                tags: d.tags || [],
+                replies: Array(d.replies_count || 0).fill({}),
+            }));
+
+            if (reset) {
+                setDiscussions(mappedDiscussions);
+                setPage(1);
+            } else {
+                setDiscussions(prev => [...prev, ...mappedDiscussions]);
+                setPage(prev => prev + 1);
+            }
+
+            setHasMore(data.length === PAGE_SIZE);
+        } catch (err) {
+            console.error('Exception in fetchDiscussions:', err);
+        } finally {
+            // 确保无论成功失败都重置loading状态
             setIsLoading(false);
-            return;
         }
-
-        const mappedDiscussions: Discussion[] = data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            author: d.profiles?.display_name || 'Unknown',
-            content: d.content,
-            date: formatRelativeTime(d.created_at),
-            likes: d.likes_count,
-            tags: d.tags || [],
-            replies: Array(d.discussion_replies[0]?.count || 0).fill({}), // Mock array for length count
-        }));
-
-        if (reset) {
-            setDiscussions(mappedDiscussions);
-            setPage(1);
-        } else {
-            setDiscussions(prev => [...prev, ...mappedDiscussions]);
-            setPage(prev => prev + 1);
-        }
-
-        setHasMore(data.length === PAGE_SIZE);
-        setIsLoading(false);
-    }, [isLoading, page, supabase, searchQuery, selectedTag, sortBy]);
+    }, [supabase, searchQuery, selectedTag, sortBy]);
 
     // Fetch all discussions tags for filter
     useEffect(() => {
@@ -124,6 +148,12 @@ export function DiscussionList() {
         };
         fetchTags();
     }, [supabase]);
+
+    // Initial load
+    useEffect(() => {
+        fetchDiscussions(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty array = only run on mount
 
     // Trigger fetch when search/filter changes
     useEffect(() => {

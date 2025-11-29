@@ -50,102 +50,111 @@ function ExploreContent() {
 
     const fetchProjects = useCallback(async (reset = false) => {
         if (isLoading && !reset) return;
-        setIsLoading(true);
+        
+        try {
+            setIsLoading(true);
 
-        const currentPage = reset ? 0 : page;
-        const PAGE_SIZE = 12;
-        const from = currentPage * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+            const currentPage = reset ? 0 : page;
+            const PAGE_SIZE = 12;
+            const from = currentPage * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
 
-        let query = supabase
-            .from('projects')
-            .select(`
-                *,
-                profiles:author_id (display_name),
-                project_materials (*),
-                project_steps (*)
-            `)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+            let query = supabase
+                .from('projects')
+                .select(`
+                    *,
+                    profiles:author_id (display_name),
+                    project_materials (*),
+                    project_steps (*)
+                `)
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
-        // 文本搜索 - 使用 ilike 查询标题和描述
-        if (searchQuery) {
-            query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-        }
+            // 文本搜索 - 使用 ilike 查询标题和描述
+            if (searchQuery) {
+                query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+            }
 
-        // 分类筛选
-        if (selectedCategory !== "全部") {
-            query = query.eq('category', selectedCategory);
-        }
+            // 分类筛选
+            if (selectedCategory !== "全部") {
+                query = query.eq('category', selectedCategory);
+            }
 
-        // 难度筛选 - 只在用户明确选择了难度时才筛选
-        if (advancedFilters.difficulty && advancedFilters.difficulty !== "all") {
-            query = query.eq('difficulty', advancedFilters.difficulty);
-        }
+            // 难度筛选 - 只在用户明确选择了难度时才筛选
+            if (advancedFilters.difficulty && advancedFilters.difficulty !== "all") {
+                query = query.eq('difficulty', advancedFilters.difficulty);
+            }
 
-        // 时长筛选 - 只在用户调整了滑块时才筛选（避免默认值过滤）
-        // 默认是 [0, 120]，只有改变了才应用筛选
-        const isDurationFiltered = advancedFilters.duration[0] !== 0 || advancedFilters.duration[1] !== 120;
-        if (isDurationFiltered) {
-            query = query
-                .gte('duration', advancedFilters.duration[0])
-                .lte('duration', advancedFilters.duration[1]);
-        }
+            // 时长筛选 - 只在用户调整了滑块时才筛选（避免默认值过滤）
+            // 默认是 [0, 120]，只有改变了才应用筛选
+            const isDurationFiltered = advancedFilters.duration[0] !== 0 || advancedFilters.duration[1] !== 120;
+            if (isDurationFiltered) {
+                query = query
+                    .gte('duration', advancedFilters.duration[0])
+                    .lte('duration', advancedFilters.duration[1]);
+            }
 
-        // 材料筛选 - 需要先查询包含指定材料的项目
-        if (advancedFilters.materials.length > 0) {
-            const { data: projectsWithMaterials } = await supabase
-                .from('project_materials')
-                .select('project_id')
-                .in('material', advancedFilters.materials);
-            
-            if (projectsWithMaterials && projectsWithMaterials.length > 0) {
-                const projectIds = Array.from(new Set(projectsWithMaterials.map(m => m.project_id)));
-                query = query.in('id', projectIds);
-            } else {
-                // 没有匹配的项目，返回空结果
-                setProjects([]);
-                setHasMore(false);
-                setIsLoading(false);
+            // 材料筛选 - 需要先查询包含指定材料的项目
+            if (advancedFilters.materials.length > 0) {
+                const { data: projectsWithMaterials } = await supabase
+                    .from('project_materials')
+                    .select('project_id')
+                    .in('material', advancedFilters.materials);
+                
+                if (projectsWithMaterials && projectsWithMaterials.length > 0) {
+                    const projectIds = Array.from(new Set(projectsWithMaterials.map(m => m.project_id)));
+                    query = query.in('id', projectIds);
+                } else {
+                    // 没有匹配的项目，返回空结果
+                    setProjects([]);
+                    setHasMore(false);
+                    return;
+                }
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                console.error('Error fetching projects:', error);
                 return;
             }
-        }
 
-        const { data, error } = await query;
+            if (!data) {
+                console.warn('No data returned from projects query');
+                return;
+            }
 
-        if (error) {
-            console.error('Error fetching projects:', error);
+            const mappedProjects: Project[] = data.map((p: any) => ({
+                id: p.id,
+                title: p.title,
+                author: p.profiles?.display_name || 'Unknown',
+                author_id: p.author_id,
+                image: p.image_url || '',
+                category: p.category || '',
+                likes: p.likes_count,
+                description: p.description || '',
+                materials: p.project_materials?.map((m: any) => m.material) || [],
+                steps: p.project_steps?.map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
+                comments: [], // Comments are not needed for the card view
+                difficulty: p.difficulty,
+                duration: p.duration,
+                tags: p.tags || []
+            }));
+
+            if (reset) {
+                setProjects(mappedProjects);
+                setPage(1);
+            } else {
+                setProjects(prev => [...prev, ...mappedProjects]);
+                setPage(prev => prev + 1);
+            }
+
+            setHasMore(data.length === PAGE_SIZE);
+        } catch (err) {
+            console.error('Exception in fetchProjects:', err);
+        } finally {
             setIsLoading(false);
-            return;
         }
-
-        const mappedProjects: Project[] = data.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            author: p.profiles?.display_name || 'Unknown',
-            author_id: p.author_id,
-            image: p.image_url || '',
-            category: p.category || '',
-            likes: p.likes_count,
-            description: p.description || '',
-            materials: p.project_materials?.map((m: any) => m.material) || [],
-            steps: p.project_steps?.map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
-            comments: [], // Comments are not needed for the card view
-            difficulty: p.difficulty,
-            duration: p.duration,
-            tags: p.tags || []
-        }));
-
-        if (reset) {
-            setProjects(mappedProjects);
-            setPage(1);
-        } else {
-            setProjects(prev => [...prev, ...mappedProjects]);
-            setPage(prev => prev + 1);
-        }
-
-        setHasMore(data.length === PAGE_SIZE);
-        setIsLoading(false);
     }, [isLoading, page, supabase, searchQuery, selectedCategory, advancedFilters]);
 
     // Trigger fetch when filters change

@@ -27,7 +27,8 @@ export type Challenge = {
     description: string;
     image: string;
     participants: number;
-    daysLeft: number;
+    daysLeft: number; // 保留用于兼容性
+    endDate?: string; // ISO格式的结束日期,用于倒计时组件
     joined: boolean;
     tags: string[];
 };

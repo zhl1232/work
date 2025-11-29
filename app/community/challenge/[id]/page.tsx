@@ -3,13 +3,14 @@
 import { useCommunity } from "@/context/community-context";
 
 import { Button } from "@/components/ui/button";
-import { Users, Clock, Trophy, ArrowLeft, CheckCircle } from "lucide-react";
+import { Users, Trophy, ArrowLeft, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 
 export default function ChallengeDetailPage({ params }: { params: { id: string } }) {
     const { challenges, joinChallenge } = useCommunity();
@@ -53,10 +54,11 @@ export default function ChallengeDetailPage({ params }: { params: { id: string }
                             fill
                             className="object-cover"
                         />
-                        <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 backdrop-blur-md">
-                            <Clock className="h-4 w-4" />
-                            还剩 {challenge.daysLeft} 天
-                        </div>
+                        {challenge.endDate && (
+                            <div className="absolute top-4 right-4">
+                                <CountdownTimer endDate={challenge.endDate} />
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6">

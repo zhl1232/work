@@ -40,58 +40,63 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
     useEffect(() => {
         const fetchDiscussion = async () => {
              if (!id) return;
-             setIsLoading(true);
+             
+             try {
+                 setIsLoading(true);
 
-             const cached = discussions.find(d => d.id.toString() === id.toString());
-             if (cached) {
-                 setDiscussion(cached);
-                 setIsLoading(false);
-                 return;
-             }
+                 const cached = discussions.find(d => d.id.toString() === id.toString());
+                 if (cached) {
+                     setDiscussion(cached);
+                     return;
+                 }
 
-             const { data, error } = await supabase
-                .from('discussions')
-                .select(`
-                    *,
-                    profiles:author_id (display_name),
-                    discussion_replies (
+                 const { data, error } = await supabase
+                    .from('discussions')
+                    .select(`
                         *,
-                        profiles:author_id (display_name, avatar_url)
-                    )
-                `)
-                .eq('id', id)
-                .single();
+                        profiles:author_id (display_name),
+                        discussion_replies (
+                            *,
+                            profiles:author_id (display_name, avatar_url)
+                        )
+                    `)
+                    .eq('id', id)
+                    .single();
 
-             if (error || !data) {
-                 console.error('Error fetching discussion:', error);
+                 if (error || !data) {
+                     console.error('Error fetching discussion:', error);
+                     setNotFound(true);
+                     return;
+                 }
+
+                 const mappedDiscussion: Discussion = {
+                    id: data.id,
+                    title: data.title,
+                    author: data.profiles?.display_name || 'Unknown',
+                    content: data.content,
+                    date: formatRelativeTime(data.created_at),
+                    likes: data.likes_count,
+                    tags: data.tags || [],
+                    replies: data.discussion_replies?.map((r: any) => ({
+                        id: r.id,
+                        author: r.profiles?.display_name || 'Unknown',
+                        userId: r.author_id,
+                        avatar: r.profiles?.avatar_url,
+                        content: r.content,
+                        date: formatRelativeTime(r.created_at),
+                        parent_id: r.parent_id,
+                        reply_to_user_id: r.reply_to_user_id,
+                        reply_to_username: r.reply_to_username
+                    })) || []
+                 };
+
+                 setDiscussion(mappedDiscussion);
+             } catch (err) {
+                 console.error('Exception in fetchDiscussion:', err);
                  setNotFound(true);
+             } finally {
                  setIsLoading(false);
-                 return;
              }
-
-             const mappedDiscussion: Discussion = {
-                id: data.id,
-                title: data.title,
-                author: data.profiles?.display_name || 'Unknown',
-                content: data.content,
-                date: formatRelativeTime(data.created_at),
-                likes: data.likes_count,
-                tags: data.tags || [],
-                replies: data.discussion_replies?.map((r: any) => ({
-                    id: r.id,
-                    author: r.profiles?.display_name || 'Unknown',
-                    userId: r.author_id,
-                    avatar: r.profiles?.avatar_url,
-                    content: r.content,
-                    date: formatRelativeTime(r.created_at),
-                    parent_id: r.parent_id,
-                    reply_to_user_id: r.reply_to_user_id,
-                    reply_to_username: r.reply_to_username
-                })) || []
-             };
-
-             setDiscussion(mappedDiscussion);
-             setIsLoading(false);
         };
 
         fetchDiscussion();

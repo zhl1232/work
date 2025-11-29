@@ -45,61 +45,65 @@ export default function ProfilePage() {
     if (!user) return
 
     const loadUserProjects = async () => {
-      // 并行执行所有查询，提升性能
-      const [myProjectsData, likedData, completedData] = await Promise.all([
-        // 查询用户发布的项目
-        supabase
-          .from('projects')
-          .select('*')
-          .eq('author_id', user.id)
-          .order('created_at', { ascending: false })
-          .then(({ data }) => data),
-        
-        // 查询用户收藏的项目
-        likedProjects.size > 0
-          ? supabase
-              .from('projects')
-              .select(`
-                *,
-                profiles:author_id (display_name)
-              `)
-              .in('id', Array.from(likedProjects))
-              .order('created_at', { ascending: false })
-              .then(({ data }) => data)
-          : Promise.resolve(null),
-        
-        // 查询用户完成的项目
-        completedProjects.size > 0
-          ? supabase
-              .from('projects')
-              .select(`
-                *,
-                profiles:author_id (display_name)
-              `)
-              .in('id', Array.from(completedProjects))
-              .order('created_at', { ascending: false })
-              .then(({ data }) => data)
-          : Promise.resolve(null)
-      ])
+      try {
+        // 并行执行所有查询，提升性能
+        const [myProjectsData, likedData, completedData] = await Promise.all([
+          // 查询用户发布的项目
+          supabase
+            .from('projects')
+            .select('*')
+            .eq('author_id', user.id)
+            .order('created_at', { ascending: false })
+            .then(({ data }) => data),
+          
+          // 查询用户收藏的项目
+          likedProjects.size > 0
+            ? supabase
+                .from('projects')
+                .select(`
+                  *,
+                  profiles:author_id (display_name)
+                `)
+                .in('id', Array.from(likedProjects))
+                .order('created_at', { ascending: false })
+                .then(({ data }) => data)
+            : Promise.resolve(null),
+          
+          // 查询用户完成的项目
+          completedProjects.size > 0
+            ? supabase
+                .from('projects')
+                .select(`
+                  *,
+                  profiles:author_id (display_name)
+                `)
+                .in('id', Array.from(completedProjects))
+                .order('created_at', { ascending: false })
+                .then(({ data }) => data)
+            : Promise.resolve(null)
+        ])
 
-      // 使用统一的映射函数处理数据
-      if (myProjectsData) {
-        setMyProjects(myProjectsData.map(p => mapProject(p as any, profile?.display_name || undefined)))
+        // 使用统一的映射函数处理数据
+        if (myProjectsData) {
+          setMyProjects(myProjectsData.map(p => mapProject(p as any, profile?.display_name || undefined)))
+        }
+
+        if (likedData) {
+          setLikedProjectsList(likedData.map((p: any) => mapProject(p)))
+        } else {
+          setLikedProjectsList([])
+        }
+
+        if (completedData) {
+          setCompletedProjectsList(completedData.map((p: any) => mapProject(p)))
+        } else {
+          setCompletedProjectsList([])
+        }
+      } catch (err) {
+        console.error('Exception in loadUserProjects:', err)
+      } finally {
+        setIsInitialLoad(false)
       }
-
-      if (likedData) {
-        setLikedProjectsList(likedData.map((p: any) => mapProject(p)))
-      } else {
-        setLikedProjectsList([])
-      }
-
-      if (completedData) {
-        setCompletedProjectsList(completedData.map((p: any) => mapProject(p)))
-      } else {
-        setCompletedProjectsList([])
-      }
-
-      setIsInitialLoad(false)
     }
 
     loadUserProjects()
