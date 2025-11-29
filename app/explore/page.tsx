@@ -203,11 +203,11 @@ function ExploreContent() {
                     if (projects.length === index + 1) {
                         return (
                             <div ref={lastProjectElementRef} key={project.id}>
-                                <ProjectCard project={project} variants={item} />
+                                <ProjectCard project={project} variants={item} searchQuery={searchQuery} />
                             </div>
                         );
                     } else {
-                        return <ProjectCard key={project.id} project={project} variants={item} />;
+                        return <ProjectCard key={project.id} project={project} variants={item} searchQuery={searchQuery} />;
                     }
                 })}
                 

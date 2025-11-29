@@ -10,13 +10,15 @@ import { Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { SearchHighlight } from "@/components/ui/search-highlight";
 
 interface ProjectCardProps {
     project: Project;
     variants?: any;
+    searchQuery?: string;
 }
 
-export function ProjectCard({ project, variants }: ProjectCardProps) {
+export function ProjectCard({ project, variants, searchQuery = "" }: ProjectCardProps) {
     const { isLiked, toggleLike } = useProjects();
     const { toast } = useToast();
     const liked = isLiked(project.id);
@@ -101,7 +103,7 @@ export function ProjectCard({ project, variants }: ProjectCardProps) {
                         </span>
                     </div>
                     <h3 className="font-semibold leading-none tracking-tight mb-1 group-hover:text-primary transition-colors">
-                        {project.title}
+                        <SearchHighlight text={project.title} query={searchQuery} />
                     </h3>
                     <p className="text-sm text-muted-foreground">by {project.author}</p>
                 </div>

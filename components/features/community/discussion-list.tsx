@@ -9,6 +9,8 @@ import { useAuth } from "@/context/auth-context";
 import { useLoginPrompt } from "@/context/login-prompt-context";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/date-utils";
+import { DiscussionSearch, SortOption } from "./discussion-search";
+import { SearchHighlight } from "@/components/ui/search-highlight";
 
 export function DiscussionList() {
     const { user, profile } = useAuth();
@@ -25,7 +27,13 @@ export function DiscussionList() {
     const observer = useRef<IntersectionObserver | null>(null);
     const supabase = createClient();
 
-    const fetchDiscussions = async (reset = false) => {
+    // Search and filter states
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [sortBy, setSortBy] = useState<SortOption>("newest");
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+
+    const fetchDiscussions = useCallback(async (reset = false) => {
         if (isLoading && !reset) return;
         setIsLoading(true);
 
@@ -34,15 +42,43 @@ export function DiscussionList() {
         const from = currentPage * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('discussions')
             .select(`
                 *,
                 profiles:author_id (display_name),
                 discussion_replies (count)
-            `)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+            `);
+
+        // Text search - search in title and content
+        if (searchQuery) {
+            query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
+        }
+
+        // Tag filter
+        if (selectedTag) {
+            query = query.contains('tags', [selectedTag]);
+        }
+
+        // Sorting
+        switch (sortBy) {
+            case 'hottest':
+                query = query.order('likes_count', { ascending: false });
+                break;
+            case 'most_replies':
+                // Note: This will require a more complex query with aggregate
+                // For now, we'll order by created_at and improve later
+                query = query.order('created_at', { ascending: false });
+                break;
+            case 'newest':
+            default:
+                query = query.order('created_at', { ascending: false });
+                break;
+        }
+
+        query = query.range(from, to);
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching discussions:', error);
@@ -71,11 +107,29 @@ export function DiscussionList() {
 
         setHasMore(data.length === PAGE_SIZE);
         setIsLoading(false);
-    };
+    }, [isLoading, page, supabase, searchQuery, selectedTag, sortBy]);
 
+    // Fetch all discussions tags for filter
+    useEffect(() => {
+        const fetchTags = async () => {
+            const { data } = await supabase
+                .from('discussions')
+                .select('tags');
+            
+            if (data) {
+                const allTags = data.flatMap(d => d.tags || []);
+                const uniqueTags = Array.from(new Set(allTags)).slice(0, 10); // Limit to 10 most common
+                setAvailableTags(uniqueTags);
+            }
+        };
+        fetchTags();
+    }, [supabase]);
+
+    // Trigger fetch when search/filter changes
     useEffect(() => {
         fetchDiscussions(true);
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery, selectedTag, sortBy]);
 
     const lastDiscussionElementRef = useCallback((node: HTMLDivElement) => {
         if (isLoading) return;
@@ -86,7 +140,7 @@ export function DiscussionList() {
             }
         });
         if (node) observer.current.observe(node);
-    }, [isLoading, hasMore]);
+    }, [isLoading, hasMore, fetchDiscussions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -121,6 +175,13 @@ export function DiscussionList() {
         }
     };
 
+    const handleSearch = (query: string, tag: string | null, sort: SortOption) => {
+        setSearchQuery(query);
+        setSelectedTag(tag);
+        setSortBy(sort);
+        // fetchDiscussions will be triggered by useEffect
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -138,6 +199,12 @@ export function DiscussionList() {
                     {isCreating ? "取消" : "发起讨论"}
                 </Button>
             </div>
+
+            {/* Search Component */}
+            <DiscussionSearch 
+                onSearch={handleSearch} 
+                availableTags={availableTags}
+            />
 
             {isCreating && (
                 <form onSubmit={handleSubmit} className="border rounded-lg p-4 space-y-4 bg-muted/30">
@@ -178,7 +245,9 @@ export function DiscussionList() {
                             <Link href={`/community/discussion/${discussion.id}`} className="absolute inset-0" />
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">{discussion.title}</h3>
+                                    <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+                                        <SearchHighlight text={discussion.title} query={searchQuery} />
+                                    </h3>
                                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                         <span className="flex items-center gap-1">
                                             👤 {discussion.author}
@@ -194,7 +263,9 @@ export function DiscussionList() {
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-muted-foreground mb-4 line-clamp-2">{discussion.content}</p>
+                            <p className="text-muted-foreground mb-4 line-clamp-2">
+                                <SearchHighlight text={discussion.content} query={searchQuery} />
+                            </p>
                             <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4 relative z-10">
                                 <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent">
                                     <MessageSquare className="h-4 w-4" />
@@ -231,6 +302,16 @@ export function DiscussionList() {
                 
                 {isLoading && (
                     <div className="text-center py-4 text-muted-foreground">加载中...</div>
+                )}
+
+                {!isLoading && discussions.length === 0 && (
+                    <div className="text-center py-20">
+                        <div className="text-4xl mb-4">🔍</div>
+                        <h3 className="text-lg font-semibold mb-2">没有找到相关讨论</h3>
+                        <p className="text-muted-foreground">
+                            {searchQuery || selectedTag ? '换个关键词或标签试试看？' : '还没有讨论，来发起第一个吧！'}
+                        </p>
+                    </div>
                 )}
             </div>
         </div>
