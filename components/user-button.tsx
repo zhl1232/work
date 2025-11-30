@@ -76,11 +76,18 @@ export function UserButton() {
           </Link>
         </DropdownMenuItem>
 
-        {canReview && (
+        {canReview ? (
           <DropdownMenuItem asChild>
             <Link href="/admin" className="cursor-pointer">
               <LayoutDashboard className="mr-2 h-4 w-4" />
               <span>管理后台</span>
+            </Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <Link href="/moderator/apply" className="cursor-pointer">
+              <UserIcon className="mr-2 h-4 w-4" />
+              <span>申请成为审核员</span>
             </Link>
           </DropdownMenuItem>
         )}

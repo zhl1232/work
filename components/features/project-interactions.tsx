@@ -1,24 +1,29 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Share2 } from "lucide-react"
+import { Heart, Share2, Bookmark } from "lucide-react"
 import { ConfettiButton } from "@/components/ui/confetti-button"
 import { useProjects } from "@/context/project-context"
 import { useAuth } from "@/context/auth-context"
 import { useLoginPrompt } from "@/context/login-prompt-context"
+import { CompleteProjectDialog } from "@/components/features/project/complete-project-dialog"
 
 interface ProjectInteractionsProps {
-    projectId: string | number
+    projectId: number | string
+    projectTitle: string
     likes: number
 }
 
-export function ProjectInteractions({ projectId, likes: initialLikes }: ProjectInteractionsProps) {
-    const { toggleLike, isLiked, toggleProjectCompleted, isCompleted } = useProjects()
+export function ProjectInteractions({ projectId, projectTitle, likes: initialLikes }: ProjectInteractionsProps) {
+    const { toggleLike, isLiked, toggleCollection, isCollected, uncompleteProject, isCompleted } = useProjects()
     const { user } = useAuth()
     const { promptLogin } = useLoginPrompt()
+    const [showCompleteDialog, setShowCompleteDialog] = useState(false)
 
     const isProjectLiked = isLiked(projectId)
     const isProjectCompleted = isCompleted(projectId)
+    const isProjectCollected = isCollected(projectId)
 
     const handleLike = () => {
         if (!user) {
@@ -31,42 +36,83 @@ export function ProjectInteractions({ projectId, likes: initialLikes }: ProjectI
         toggleLike(projectId)
     }
 
-    const handleComplete = () => {
+    const handleCollection = () => {
         if (!user) {
-            promptLogin(() => toggleProjectCompleted(projectId), {
+            promptLogin(() => toggleCollection(projectId), {
+                title: '登录以收藏项目',
+                description: '登录后即可收藏喜欢的项目'
+            })
+            return
+        }
+        toggleCollection(projectId)
+    }
+
+    const handleCompleteClick = () => {
+        if (!user) {
+            promptLogin(() => setShowCompleteDialog(true), {
                 title: '登录以标记完成',
                 description: '登录后可记录你完成的项目，获得成就徽章'
             })
             return
         }
-        toggleProjectCompleted(projectId)
+
+        if (isProjectCompleted) {
+            // 如果已完成，点击则是取消完成
+            // 这里可以加一个确认对话框，目前直接取消
+            uncompleteProject(projectId)
+        } else {
+            // 未完成，打开对话框
+            setShowCompleteDialog(true)
+        }
     }
 
     return (
-        <div className="rounded-lg border p-4 space-y-4 sticky top-24">
-            <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                    <Button
-                        variant={isProjectLiked ? "default" : "outline"}
-                        size="icon"
-                        onClick={handleLike}
-                        className={isProjectLiked ? "bg-red-500 hover:bg-red-600 text-white border-red-500" : ""}
-                    >
-                        <Heart className={`h-4 w-4 ${isProjectLiked ? "fill-current" : ""}`} />
-                    </Button>
-                    <Button variant="outline" size="icon">
-                        <Share2 className="h-4 w-4" />
-                    </Button>
+        <>
+            <div className="rounded-lg border p-4 space-y-4 sticky top-24">
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                        <Button
+                            variant={isProjectLiked ? "default" : "outline"}
+                            size="icon"
+                            onClick={handleLike}
+                            className={isProjectLiked ? "bg-red-500 hover:bg-red-600 text-white border-red-500" : ""}
+                            title="点赞"
+                        >
+                            <Heart className={`h-4 w-4 ${isProjectLiked ? "fill-current" : ""}`} />
+                        </Button>
+                        <Button
+                            variant={isProjectCollected ? "default" : "outline"}
+                            size="icon"
+                            onClick={handleCollection}
+                            className={isProjectCollected ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500" : ""}
+                            title="收藏"
+                        >
+                            <Bookmark className={`h-4 w-4 ${isProjectCollected ? "fill-current" : ""}`} />
+                        </Button>
+                        <Button variant="outline" size="icon" title="分享">
+                            <Share2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <span className="font-bold text-lg">{initialLikes} 赞</span>
                 </div>
-                <span className="font-bold text-lg">{initialLikes} 赞</span>
+                <ConfettiButton
+                    className="w-full"
+                    isCompleted={isProjectCompleted}
+                    onClick={handleCompleteClick}
+                >
+                    {isProjectCompleted ? "已完成 (Marked as Done)" : "我做过这个！(Mark as Done)"}
+                </ConfettiButton>
             </div>
-            <ConfettiButton
-                className="w-full"
-                isCompleted={isProjectCompleted}
-                onClick={handleComplete}
-            >
-                我做过这个！(Mark as Done)
-            </ConfettiButton>
-        </div>
+
+            <CompleteProjectDialog
+                projectId={projectId}
+                projectTitle={projectTitle}
+                open={showCompleteDialog}
+                onOpenChange={setShowCompleteDialog}
+                onSuccess={() => {
+                    // 成功后的回调，ConfettiButton 会自动更新状态因为 isCompleted 会变
+                }}
+            />
+        </>
     )
 }

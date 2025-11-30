@@ -20,6 +20,11 @@ export function MainNav() {
             active: pathname === "/community",
         },
         {
+            href: "/leaderboard",
+            label: "排行榜",
+            active: pathname === "/leaderboard",
+        },
+        {
             href: "/share",
             label: "分享",
             active: pathname === "/share",

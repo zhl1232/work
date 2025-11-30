@@ -21,8 +21,8 @@ import { mapProject } from '@/lib/mappers/project'
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth()
-  const { likedProjects, completedProjects } = useProjects()
-  const [activeTab, setActiveTab] = useState<'my-projects' | 'liked' | 'completed'>('liked')
+  const { likedProjects, completedProjects, collectedProjects } = useProjects()
+  const [activeTab, setActiveTab] = useState<'my-projects' | 'liked' | 'collected' | 'completed'>('collected')
   const { unlockedBadges } = useGamification()
   const router = useRouter()
   const supabase = createClient()
@@ -30,6 +30,7 @@ export default function ProfilePage() {
   // 独立加载的项目列表
   const [myProjects, setMyProjects] = useState<Project[]>([])
   const [likedProjectsList, setLikedProjectsList] = useState<Project[]>([])
+  const [collectedProjectsList, setCollectedProjectsList] = useState<Project[]>([])
   const [completedProjectsList, setCompletedProjectsList] = useState<Project[]>([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
@@ -47,7 +48,7 @@ export default function ProfilePage() {
     const loadUserProjects = async () => {
       try {
         // 并行执行所有查询，提升性能
-        const [myProjectsData, likedData, completedData] = await Promise.all([
+        const [myProjectsData, likedData, collectedData, completedData] = await Promise.all([
           // 查询用户发布的项目
           supabase
             .from('projects')
@@ -56,7 +57,7 @@ export default function ProfilePage() {
             .order('created_at', { ascending: false })
             .then(({ data }) => data),
 
-          // 查询用户收藏的项目
+          // 查询用户点赞的项目
           likedProjects.size > 0
             ? supabase
               .from('projects')
@@ -65,6 +66,19 @@ export default function ProfilePage() {
                   profiles:author_id (display_name)
                 `)
               .in('id', Array.from(likedProjects))
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data)
+            : Promise.resolve(null),
+
+          // 查询用户收藏的项目
+          collectedProjects.size > 0
+            ? supabase
+              .from('projects')
+              .select(`
+                  *,
+                  profiles:author_id (display_name)
+                `)
+              .in('id', Array.from(collectedProjects))
               .order('created_at', { ascending: false })
               .then(({ data }) => data)
             : Promise.resolve(null),
@@ -94,6 +108,12 @@ export default function ProfilePage() {
           setLikedProjectsList([])
         }
 
+        if (collectedData) {
+          setCollectedProjectsList(collectedData.map((p: any) => mapProject(p)))
+        } else {
+          setCollectedProjectsList([])
+        }
+
         if (completedData) {
           setCompletedProjectsList(completedData.map((p: any) => mapProject(p)))
         } else {
@@ -108,7 +128,7 @@ export default function ProfilePage() {
 
     loadUserProjects()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, likedProjects, completedProjects, profile?.display_name])
+  }, [user?.id, likedProjects, collectedProjects, completedProjects, profile?.display_name])
 
 
   if (authLoading) {
@@ -192,7 +212,7 @@ export default function ProfilePage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">收藏项目</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{likedProjects.size}</div>
+            <div className="text-2xl font-bold">{collectedProjects.size}</div>
           </CardContent>
         </Card>
         <Card>
@@ -237,25 +257,32 @@ export default function ProfilePage() {
       </div>
 
       {/* 标签页切换 */}
-      <div className="flex gap-2 mb-6 border-b">
+      <div className="flex gap-2 mb-6 border-b overflow-x-auto">
         <Button
           variant={activeTab === 'my-projects' ? 'default' : 'ghost'}
           onClick={() => setActiveTab('my-projects')}
-          className="rounded-b-none"
+          className="rounded-b-none whitespace-nowrap"
         >
           我的发布 ({myProjects.length})
         </Button>
         <Button
+          variant={activeTab === 'collected' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('collected')}
+          className="rounded-b-none whitespace-nowrap"
+        >
+          我的收藏 ({collectedProjects.size})
+        </Button>
+        <Button
           variant={activeTab === 'liked' ? 'default' : 'ghost'}
           onClick={() => setActiveTab('liked')}
-          className="rounded-b-none"
+          className="rounded-b-none whitespace-nowrap"
         >
-          我的收藏 ({likedProjects.size})
+          我点赞的 ({likedProjects.size})
         </Button>
         <Button
           variant={activeTab === 'completed' ? 'default' : 'ghost'}
           onClick={() => setActiveTab('completed')}
-          className="rounded-b-none"
+          className="rounded-b-none whitespace-nowrap"
         >
           我做过的 ({completedProjects.size})
         </Button>
@@ -266,6 +293,7 @@ export default function ProfilePage() {
         {/* 判断是否正在加载 */}
         {isInitialLoad ||
           (activeTab === 'my-projects' && isInitialLoad) ||
+          (activeTab === 'collected' && collectedProjects.size > 0 && collectedProjectsList.length === 0) ||
           (activeTab === 'liked' && likedProjects.size > 0 && likedProjectsList.length === 0) ||
           (activeTab === 'completed' && completedProjects.size > 0 && completedProjectsList.length === 0) ? (
           <ProjectListSkeleton />
@@ -282,9 +310,20 @@ export default function ProfilePage() {
             {activeTab === 'my-projects' &&
               myProjects.map((project) => <ProjectCard key={project.id} project={project} showStatus={true} />)}
 
-            {activeTab === 'liked' && likedProjectsList.length === 0 && (
+            {activeTab === 'collected' && collectedProjectsList.length === 0 && (
               <div className="col-span-full text-center py-12 text-muted-foreground">
                 <p className="mb-4">你还没有收藏任何项目</p>
+                <Link href="/explore">
+                  <Button>去发现有趣的项目</Button>
+                </Link>
+              </div>
+            )}
+            {activeTab === 'collected' &&
+              collectedProjectsList.map((project) => <ProjectCard key={project.id} project={project} />)}
+
+            {activeTab === 'liked' && likedProjectsList.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <p className="mb-4">你还没有点赞任何项目</p>
                 <Link href="/explore">
                   <Button>去发现有趣的项目</Button>
                 </Link>

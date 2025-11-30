@@ -99,6 +99,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                         {/* Interactions - Client Component */}
                         <ProjectInteractions
                             projectId={project.id}
+                            projectTitle={project.title}
                             likes={project.likes}
                         />
 

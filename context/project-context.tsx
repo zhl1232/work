@@ -9,21 +9,29 @@ import { useNotifications } from "@/context/notification-context";
 import { mapComment, type DbComment } from "@/lib/mappers/project";
 import { Project, Comment } from "@/lib/types";
 
+export interface ProjectCompletionProof {
+    images: string[];
+    videoUrl?: string;
+    notes?: string;
+}
+
 type ProjectContextType = {
     projects: Project[];
     likedProjects: Set<string | number>;
     completedProjects: Set<string | number>;
+    collectedProjects: Set<string | number>;
     addProject: (project: Project) => void;
     addComment: (projectId: string | number, comment: Comment, parentId?: number) => Promise<Comment | null>;
     toggleLike: (projectId: string | number) => void;
+    toggleCollection: (projectId: string | number) => void;
     isLiked: (projectId: string | number) => boolean;
-    toggleProjectCompleted: (projectId: string | number) => void;
+    isCollected: (projectId: string | number) => boolean;
+    completeProject: (projectId: string | number, proof: ProjectCompletionProof) => Promise<void>;
+    uncompleteProject: (projectId: string | number) => Promise<void>;
     isCompleted: (projectId: string | number) => boolean;
     deleteComment: (commentId: string | number) => Promise<void>;
     isLoading: boolean;
 };
-
-
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
@@ -31,6 +39,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [likedProjects, setLikedProjects] = useState<Set<string | number>>(new Set());
     const [completedProjects, setCompletedProjects] = useState<Set<string | number>>(new Set());
+    const [collectedProjects, setCollectedProjects] = useState<Set<string | number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
 
     const [supabase] = useState(() => createClient());
@@ -41,50 +50,37 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     // Refs for stable callbacks
     const likedProjectsRef = useRef(likedProjects);
     const completedProjectsRef = useRef(completedProjects);
+    const collectedProjectsRef = useRef(collectedProjects);
 
     useEffect(() => { likedProjectsRef.current = likedProjects; }, [likedProjects]);
     useEffect(() => { completedProjectsRef.current = completedProjects; }, [completedProjects]);
-
-
-
-
-
-
+    useEffect(() => { collectedProjectsRef.current = collectedProjects; }, [collectedProjects]);
 
     const fetchUserInteractions = useCallback(async () => {
-        if (!user) {
-            setLikedProjects(new Set());
-            setCompletedProjects(new Set());
-            return;
-        }
+        if (!user) return;
 
-        const { data: likes } = await supabase
-            .from('likes')
-            .select('project_id')
-            .eq('user_id', user.id);
+        try {
+            const [likesResponse, completedResponse, collectionsResponse] = await Promise.all([
+                supabase.from('likes').select('project_id').eq('user_id', user.id),
+                supabase.from('completed_projects').select('project_id').eq('user_id', user.id),
+                supabase.from('collections').select('project_id').eq('user_id', user.id)
+            ]);
 
-        if (likes) {
-            setLikedProjects(new Set(likes.map(l => l.project_id)));
-        }
-
-        const { data: completed } = await supabase
-            .from('completed_projects')
-            .select('project_id')
-            .eq('user_id', user.id);
-
-        if (completed) {
-            setCompletedProjects(new Set(completed.map(c => c.project_id)));
-        }
-    }, [supabase, user]);
-
-    useEffect(() => {
-        const initData = async () => {
-            setIsLoading(true);
-            // No global fetch needed for projects anymore
+            if (likesResponse.data) {
+                setLikedProjects(new Set(likesResponse.data.map(l => l.project_id)));
+            }
+            if (completedResponse.data) {
+                setCompletedProjects(new Set(completedResponse.data.map(c => c.project_id)));
+            }
+            if (collectionsResponse.data) {
+                setCollectedProjects(new Set(collectionsResponse.data.map(c => c.project_id)));
+            }
+        } catch (error) {
+            console.error('Error fetching user interactions:', error);
+        } finally {
             setIsLoading(false);
-        };
-        initData();
-    }, []);
+        }
+    }, [user, supabase]);
 
     useEffect(() => {
         if (user?.id) {
@@ -163,7 +159,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Award XP for publishing a project
-        addXp(50, "发布新项目");
+        addXp(50, "发布新项目", "publish_project", newProject.id);
 
         // Check badges
         const stats = await getUserStats();
@@ -172,8 +168,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             ...stats,
             projectsPublished: stats.projectsPublished + 1
         });
-
-        // fetchProjects(); // Removed
     }, [supabase, user, addXp, checkBadges, getUserStats]);
 
     const addComment = useCallback(async (projectId: string | number, comment: Comment, parentId?: number) => {
@@ -216,7 +210,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Award XP for commenting
-        addXp(5, "发表评论");
+        addXp(1, "发表评论", "comment_project", newComment.id);
 
         // Check badges
         const stats = await getUserStats();
@@ -256,29 +250,61 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         } else {
             await supabase.from('likes').insert({ user_id: user.id, project_id: pid });
             await callRpc(supabase, 'increment_project_likes', { project_id: pid });
+            addXp(1, "点赞项目", "like_project", pid);
+        }
+    }, [supabase, user, addXp]);
+
+    const toggleCollection = useCallback(async (projectId: string | number) => {
+        if (!user) return;
+        const pid = typeof projectId === 'string' ? parseInt(projectId) : projectId;
+
+        const isCollected = collectedProjectsRef.current.has(projectId);
+
+        // Optimistic update
+        setCollectedProjects(prev => {
+            const newSet = new Set(prev);
+            if (isCollected) newSet.delete(projectId);
+            else newSet.add(projectId);
+            return newSet;
+        });
+
+        if (isCollected) {
+            await supabase.from('collections').delete().eq('user_id', user.id).eq('project_id', pid);
+        } else {
+            await supabase.from('collections').insert({ user_id: user.id, project_id: pid });
         }
     }, [supabase, user]);
 
-    const toggleProjectCompleted = useCallback(async (projectId: string | number) => {
+    const completeProject = useCallback(async (projectId: string | number, proof: ProjectCompletionProof) => {
         if (!user) return;
+
+        // 验证必须有图片
+        if (!proof.images || proof.images.length === 0) {
+            throw new Error("至少需要上传一张作品照片");
+        }
+
         const pid = projectId;
-        const isCompleted = completedProjectsRef.current.has(pid);
 
         // Optimistic update
         setCompletedProjects(prev => {
             const newSet = new Set(prev);
-            if (isCompleted) newSet.delete(pid);
-            else newSet.add(pid);
+            newSet.add(pid);
             return newSet;
         });
 
-        if (isCompleted) {
-            await supabase.from('completed_projects').delete().eq('user_id', user.id).eq('project_id', pid);
-        } else {
-            await supabase.from('completed_projects').insert({ user_id: user.id, project_id: pid });
+        try {
+            const { error } = await supabase.from('completed_projects').insert({
+                user_id: user.id,
+                project_id: pid,
+                proof_images: proof.images,
+                proof_video_url: proof.videoUrl || null,
+                notes: proof.notes || null
+            });
+
+            if (error) throw error;
 
             // Award XP for completing a project
-            addXp(20, "完成项目");
+            addXp(20, "完成项目", "complete_project", pid);
 
             // Check badges
             const stats = await getUserStats();
@@ -286,13 +312,51 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 ...stats,
                 projectsCompleted: completedProjectsRef.current.size + 1
             });
+        } catch (error) {
+            // Revert on error
+            setCompletedProjects(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(pid);
+                return newSet;
+            });
+            throw error;
         }
     }, [supabase, user, addXp, checkBadges, getUserStats]);
 
+    const uncompleteProject = useCallback(async (projectId: string | number) => {
+        if (!user) return;
+
+        const pid = projectId;
+
+        // Optimistic update
+        setCompletedProjects(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(pid);
+            return newSet;
+        });
+
+        try {
+            const { error } = await supabase
+                .from('completed_projects')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('project_id', pid);
+
+            if (error) throw error;
+        } catch (error) {
+            // Revert on error
+            setCompletedProjects(prev => {
+                const newSet = new Set(prev);
+                newSet.add(pid);
+                return newSet;
+            });
+            throw error;
+        }
+    }, [supabase, user]);
+
     const isLiked = useCallback((projectId: string | number) => likedProjects.has(projectId), [likedProjects]);
+    const isCollected = useCallback((projectId: string | number) => collectedProjects.has(projectId), [collectedProjects]);
     const isCompleted = useCallback((projectId: string | number) => completedProjects.has(projectId), [completedProjects]);
-
-
 
     const deleteComment = useCallback(async (commentId: string | number) => {
         if (!user) return;
@@ -315,22 +379,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         if (!response.ok) {
             console.error('Error deleting comment:', await response.text());
-            // Revert optimistic update if needed
         }
     }, [user]);
-
-
 
     // 使用 useMemo 缓存 Context 值，避免每次渲染都创建新对象
     const contextValue = useMemo(() => ({
         projects,
         likedProjects,
         completedProjects,
+        collectedProjects,
         addProject,
         addComment,
         toggleLike,
+        toggleCollection,
         isLiked,
-        toggleProjectCompleted,
+        isCollected,
+        completeProject,
+        uncompleteProject,
         isCompleted,
         deleteComment,
         isLoading
@@ -338,11 +403,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         projects,
         likedProjects,
         completedProjects,
+        collectedProjects,
         addProject,
         addComment,
         toggleLike,
+        toggleCollection,
         isLiked,
-        toggleProjectCompleted,
+        isCollected,
+        completeProject,
+        uncompleteProject,
         isCompleted,
         deleteComment,
         isLoading

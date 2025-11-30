@@ -64,7 +64,7 @@ interface GamificationContextType {
     xp: number;
     level: number;
     unlockedBadges: Set<string>;
-    addXp: (amount: number, reason?: string) => void;
+    addXp: (amount: number, reason?: string, actionType?: string, resourceId?: string | number) => void;
     checkBadges: (stats: UserStats) => void;
     nextLevelXp: number;
     progress: number;
@@ -94,7 +94,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 .select('xp')
                 .eq('id', user.id)
                 .single();
-            
+
             if (profile) {
                 setXp(profile.xp || 0);
             }
@@ -104,7 +104,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 .from('user_badges')
                 .select('badge_id')
                 .eq('user_id', user.id);
-            
+
             if (badges) {
                 setUnlockedBadges(new Set(badges.map(b => b.badge_id)));
             }
@@ -122,8 +122,37 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     const levelTotalNeeded = nextLevelXp - currentLevelBaseXp;
     const progress = (levelProgress / levelTotalNeeded) * 100;
 
-    const addXp = useCallback(async (amount: number, _reason?: string) => {
+    const addXp = useCallback(async (amount: number, reason?: string, actionType?: string, resourceId?: string | number) => {
         if (!user) return;
+
+        // If actionType and resourceId are provided, check for duplicates
+        if (actionType && resourceId) {
+            const rId = String(resourceId);
+
+            // Try to insert into xp_logs
+            // We use ignoreDuplicates: false to let it fail if constraint is violated
+            // But Supabase JS client doesn't throw on unique constraint violation by default with insert, it returns error
+            const { error: logError } = await supabase
+                .from('xp_logs')
+                .insert({
+                    user_id: user.id,
+                    action_type: actionType,
+                    resource_id: rId,
+                    xp_amount: amount
+                });
+
+            // If there's an error (likely unique constraint violation), we assume XP was already awarded
+            if (logError) {
+                if (logError.code === '23505') { // Unique violation code
+                    console.log('XP already awarded for this action:', actionType, resourceId);
+                    return;
+                }
+                console.error('Error logging XP:', logError);
+                // For other errors, we might still want to proceed or halt? 
+                // Let's halt to be safe and consistent.
+                return;
+            }
+        }
 
         const newXp = xp + amount;
         setXp(newXp); // Optimistic update
@@ -134,10 +163,10 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         if (newLevel > oldLevel) {
             toast({
                 description: (
-                    <AchievementToast 
-                        title="升级啦！" 
-                        description={`恭喜你达到了等级 ${newLevel}！`} 
-                        icon="🎉" 
+                    <AchievementToast
+                        title="升级啦！"
+                        description={`恭喜你达到了等级 ${newLevel}！`}
+                        icon="🎉"
                     />
                 ),
                 duration: 5000,
@@ -167,13 +196,13 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                     newSet.add(badge.id);
                     return newSet;
                 });
-                
+
                 toast({
                     description: (
-                        <AchievementToast 
-                            title="解锁新徽章！" 
-                            description={`你获得了 "${badge.name}" 徽章`} 
-                            icon={badge.icon} 
+                        <AchievementToast
+                            title="解锁新徽章！"
+                            description={`你获得了 "${badge.name}" 徽章`}
+                            icon={badge.icon}
                         />
                     ),
                     duration: 5000,
@@ -186,7 +215,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                         user_id: user.id,
                         badge_id: badge.id
                     });
-                
+
                 if (error) {
                     console.error(`Failed to unlock badge ${badge.id}:`, error);
                 }
@@ -194,11 +223,11 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         });
     }, [user, unlockedBadges, supabase, toast]);
 
-    const contextValue = useMemo(() => ({ 
-        xp, 
-        level, 
-        unlockedBadges, 
-        addXp, 
+    const contextValue = useMemo(() => ({
+        xp,
+        level,
+        unlockedBadges,
+        addXp,
         checkBadges,
         nextLevelXp,
         progress

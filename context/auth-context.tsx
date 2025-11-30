@@ -12,6 +12,8 @@ interface Profile {
   username: string | null
   display_name: string | null
   avatar_url: string | null
+  xp: number
+  created_at: string
 }
 
 interface AuthContextType {
@@ -38,10 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, role, username, display_name, avatar_url')
+      .select('id, role, username, display_name, avatar_url, xp, created_at')
       .eq('id', userId)
       .single()
-    
+
     return data as Profile | null
   }
 
@@ -89,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // 调用 Supabase 退出登录
       await supabase.auth.signOut()
-      
+
       // 清除所有 Supabase 相关的 localStorage 数据
       if (typeof window !== 'undefined') {
         Object.keys(localStorage).forEach(key => {
@@ -98,11 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         })
       }
-      
+
       // 清除状态
       setUser(null)
       setProfile(null)
-      
+
       // 刷新页面以确保所有状态被清除
       window.location.href = '/'
     } catch (error) {
@@ -121,10 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canManageTags = isAdmin || isModerator
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
+      user,
       profile,
-      loading, 
+      loading,
       isAdmin,
       isModerator,
       canReview,

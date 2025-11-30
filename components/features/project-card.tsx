@@ -8,9 +8,9 @@ import { Heart, ImageOff } from "lucide-react";
 import { useProjects } from "@/context/project-context";
 import { Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+
 import { SearchHighlight } from "@/components/ui/search-highlight";
 
 interface ProjectCardProps {
@@ -21,27 +21,13 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, variants, searchQuery = "", showStatus = false }: ProjectCardProps) {
-    const { isLiked, toggleLike } = useProjects();
-    const { toast } = useToast();
+    const { isLiked } = useProjects();
     const liked = isLiked(project.id);
     const [likesCount, setLikesCount] = useState(project.likes);
     const [imageError, setImageError] = useState(false);
     const shouldReduceMotion = useReducedMotion();
 
-    const handleLike = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const wasLiked = liked;
-        toggleLike(project.id);
-        setLikesCount(prev => wasLiked ? prev - 1 : prev + 1);
 
-        if (!wasLiked) {
-            toast({
-                title: "已添加到收藏",
-                description: "项目已成功添加到您的收藏列表",
-            });
-        }
-    };
 
     return (
         <motion.div
@@ -99,34 +85,7 @@ export function ProjectCard({ project, variants, searchQuery = "", showStatus = 
 
                     {/* 收藏按钮 - 右上角 */}
 
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                        >
-                            <Button
-                                size="icon"
-                                variant="secondary"
-                                className={cn(
-                                    "h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white shadow-lg",
-                                    liked && "text-red-500"
-                                )}
-                                onClick={handleLike}
-                            >
-                                <motion.div
-                                    animate={liked ? {
-                                        scale: [1, 1.3, 1],
-                                    } : {}}
-                                    transition={{
-                                        duration: 0.3,
-                                        ease: "easeInOut"
-                                    }}
-                                >
-                                    <Heart className={cn("h-5 w-5", liked && "fill-current")} />
-                                </motion.div>
-                            </Button>
-                        </motion.div>
-                    </div>
+
                 </div>
                 <div className="p-4 bg-gradient-to-br from-background to-background/95">
                     <div className="flex items-center justify-between mb-2">

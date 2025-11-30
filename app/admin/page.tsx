@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/auth-context'
 import { createClient } from '@/lib/supabase/client'
 import { ProjectReviewCard } from '@/components/admin/project-review-card'
+import { ModeratorApplicationsList } from '@/components/admin/moderator-applications-list'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -84,6 +85,7 @@ export default function AdminPage() {
       <Tabs defaultValue="pending" className="space-y-6">
         <TabsList>
           <TabsTrigger value="pending">待审核项目</TabsTrigger>
+          <TabsTrigger value="applications">审核员申请</TabsTrigger>
           <TabsTrigger value="tags">标签管理</TabsTrigger>
           <TabsTrigger value="users">用户管理</TabsTrigger>
         </TabsList>
@@ -106,6 +108,10 @@ export default function AdminPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="applications" className="space-y-4">
+          <ModeratorApplicationsList />
         </TabsContent>
 
         <TabsContent value="tags" className="space-y-4">

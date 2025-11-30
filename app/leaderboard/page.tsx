@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Medal, Crown } from "lucide-react";
 import { LeaderboardItemSkeleton } from "@/components/ui/leaderboard-skeleton";
 import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface LeaderboardUser {
     id: string;
@@ -19,44 +20,87 @@ interface LeaderboardUser {
     isCurrentUser?: boolean;
 }
 
-// Mock data for leaderboard since we don't have a real backend for all users yet
-const MOCK_USERS: LeaderboardUser[] = [
-    { id: "1", name: "科技小达人", xp: 5400, level: 8, badges: 12, avatar: null },
-    { id: "2", name: "STEAM探索者", xp: 4200, level: 7, badges: 9, avatar: null },
-    { id: "3", name: "未来发明家", xp: 3800, level: 7, badges: 8, avatar: null },
-    { id: "4", name: "创意工坊", xp: 2900, level: 6, badges: 6, avatar: null },
-    { id: "5", name: "小小工程师", xp: 2100, level: 5, badges: 5, avatar: null },
-];
-
 export default function LeaderboardPage() {
     const { user, profile } = useAuth();
     const { xp, level, unlockedBadges } = useGamification();
     const [isLoading, setIsLoading] = useState(true);
+    const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
+    const supabase = createClient();
 
-    // Simulate loading
+    // 获取真实排行榜数据
     useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 500);
-        return () => clearTimeout(timer);
-    }, []);
+        const fetchLeaderboard = async () => {
+            setIsLoading(true);
 
-    // Combine current user with mock users and sort
-    const currentUser: LeaderboardUser | null = user ? {
-        id: user.id,
-        name: profile?.display_name || user.user_metadata?.full_name || "我",
-        xp,
-        level,
-        badges: unlockedBadges.size,
-        avatar: profile?.avatar_url || user.user_metadata?.avatar_url,
-        isCurrentUser: true
-    } : null;
+            try {
+                // 1. 查询 Top 20 用户（按 XP 降序）
+                const { data: topProfiles, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, avatar_url, xp')
+                    .order('xp', { ascending: false })
+                    .limit(20);
 
-    const leaderboardData = [...MOCK_USERS];
-    if (currentUser) {
-        leaderboardData.push(currentUser);
-    }
+                if (profilesError) throw profilesError;
 
-    // Sort by XP descending
-    leaderboardData.sort((a, b) => b.xp - a.xp);
+                if (!topProfiles || topProfiles.length === 0) {
+                    setLeaderboardData([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // 2. 批量查询这些用户的徽章数量
+                const userIds = topProfiles.map(p => p.id);
+                const { data: badgesData, error: badgesError } = await supabase
+                    .from('user_badges')
+                    .select('user_id, badge_id')
+                    .in('user_id', userIds);
+
+                if (badgesError) throw badgesError;
+
+                // 3. 统计每个用户的徽章数
+                const badgeCounts = new Map<string, number>();
+                badgesData?.forEach(({ user_id }) => {
+                    badgeCounts.set(user_id, (badgeCounts.get(user_id) || 0) + 1);
+                });
+
+                // 4. 组合数据
+                const users: LeaderboardUser[] = topProfiles.map(p => ({
+                    id: p.id,
+                    name: p.display_name || '匿名用户',
+                    xp: p.xp || 0,
+                    level: Math.floor(Math.sqrt((p.xp || 0) / 100)) + 1,
+                    badges: badgeCounts.get(p.id) || 0,
+                    avatar: p.avatar_url,
+                    isCurrentUser: user?.id === p.id
+                }));
+
+                // 5. 如果当前用户不在 Top 20，添加到列表
+                if (user && !users.some(u => u.id === user.id)) {
+                    users.push({
+                        id: user.id,
+                        name: profile?.display_name || '我',
+                        xp,
+                        level,
+                        badges: unlockedBadges.size,
+                        avatar: profile?.avatar_url,
+                        isCurrentUser: true
+                    });
+                }
+
+                // 6. 重新按 XP 排序
+                users.sort((a, b) => b.xp - a.xp);
+
+                setLeaderboardData(users);
+            } catch (error) {
+                console.error('Error fetching leaderboard:', error);
+                setLeaderboardData([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLeaderboard();
+    }, [user, profile, xp, level, unlockedBadges, supabase]);
 
     const getRankIcon = (index: number) => {
         switch (index) {
@@ -93,6 +137,10 @@ export default function LeaderboardPage() {
                                     <LeaderboardItemSkeleton key={i} />
                                 ))}
                             </>
+                        ) : leaderboardData.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                暂无排行榜数据
+                            </div>
                         ) : (
                             <>
                                 {leaderboardData.map((user, index) => (

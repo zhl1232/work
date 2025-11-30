@@ -28,7 +28,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     const [discussions, setDiscussions] = useState<Discussion[]>([]);
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [supabase] = useState(() => createClient());
     const { user, profile } = useAuth();
     const { addXp } = useGamification();
@@ -57,7 +57,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
                 .from('challenge_participants')
                 .select('challenge_id')
                 .eq('user_id', user.id);
-            
+
             if (participants) {
                 participants.forEach(p => joinedChallengeIds.add(p.challenge_id));
             }
@@ -140,7 +140,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Award XP for replying
-        addXp(5, "回复讨论");
+        addXp(1, "回复讨论", "reply_discussion", newReply.id);
 
         // 使用统一的映射函数
         return mapComment(newReply as unknown as DbComment);
@@ -149,7 +149,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     const joinChallenge = useCallback(async (challengeId: string | number) => {
         if (!user) return;
         const cid = Number(challengeId);
-        
+
         // Find current challenge to check status
         const challenge = challengesRef.current.find(c => c.id === cid);
         if (!challenge) return;
