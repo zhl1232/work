@@ -2,104 +2,138 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FlaskConical, Rocket, Palette, Calculator, Cpu } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { FlaskConical, Rocket, Palette, Calculator, Cpu, Sparkles, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { TechBackground } from "@/components/ui/tech-background";
+import { CategoryPortal } from "@/components/home/category-portal";
 
 export default function Home() {
-    const shouldReduceMotion = useReducedMotion();
-
-    // 根据用户的减少动画偏好调整动画配置
-    const fadeInVariants = shouldReduceMotion
-        ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
-        : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
-
-    const scaleVariants = shouldReduceMotion
-        ? { initial: { opacity: 1, scale: 1 }, whileInView: { opacity: 1, scale: 1 } }
-        : { initial: { opacity: 0, scale: 0.9 }, whileInView: { opacity: 1, scale: 1 } };
-
     return (
-        <div className="flex-1">
-            <section className="space-y-6 pb-8 pt-6 md:pb-12 md:pt-10 lg:py-32">
-                <div className="container mx-auto flex max-w-[64rem] flex-col items-center gap-4 text-center">
-                    <motion.h1
-                        {...fadeInVariants}
-                        transition={{ duration: shouldReduceMotion ? 0 : 0.5 }}
-                        className="font-heading text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary"
-                    >
-                        激发好奇心，<br />创造你的世界
-                    </motion.h1>
-                    <motion.p
-                        {...fadeInVariants}
-                        transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: shouldReduceMotion ? 0 : 0.2 }}
-                        className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8"
-                    >
-                        加入最大的 STEAM 创意社区。探索科学实验、工程挑战和艺术创作。分享你的作品，启发他人。
-                    </motion.p>
+        <div className="flex-1 relative overflow-hidden min-h-screen">
+            <TechBackground />
+
+            {/* Hero Section */}
+            <section className="relative space-y-6 pb-16 pt-20 md:pb-32 md:pt-32 lg:py-48 overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] -z-10 animate-pulse-glow" />
+
+                <div className="container mx-auto flex max-w-[64rem] flex-col items-center gap-6 text-center relative z-10">
                     <motion.div
-                        {...fadeInVariants}
-                        transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: shouldReduceMotion ? 0 : 0.4 }}
-                        className="space-x-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
                     >
-                        <Link href="/explore"><Button size="lg">开始探索</Button></Link>
-                        <Link href="/share"><Button size="lg" variant="outline">分享创意</Button></Link>
+                        <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 dark:border-white/10 dark:bg-white/5 px-4 py-1.5 text-sm font-medium text-primary dark:text-purple-300 backdrop-blur-md">
+                            <Sparkles className="mr-2 h-4 w-4 text-primary dark:text-purple-400" />
+                            STEAM 创意宇宙
+                        </span>
+                    </motion.div>
+
+                    <motion.h1
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="font-heading text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight"
+                    >
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-foreground to-accent">
+                            无尽探索，始于兴趣
+                        </span>
+                    </motion.h1>
+
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.8, delay: 0.4 }}
+                        className="max-w-[42rem] leading-relaxed text-muted-foreground sm:text-lg sm:leading-8"
+                    >
+                        在这里，每一个想法都值得被点亮。
+                        <br className="hidden sm:inline" />
+                        连接科学与艺术，构建属于你的创造力世界。
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.6 }}
+                        className="flex flex-wrap justify-center gap-4 pt-4"
+                    >
+                        <Link href="/explore">
+                            <Button size="lg" className="h-12 px-8 text-base rounded-full bg-gradient-to-r from-violet-400 to-indigo-400 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 border-0">
+                                开始旅程 <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <Link href="/share">
+                            <Button size="lg" variant="outline" className="h-12 px-8 text-base rounded-full border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 backdrop-blur-sm transition-all hover:scale-105">
+                                分享灵感
+                            </Button>
+                        </Link>
                     </motion.div>
                 </div>
             </section>
 
-            <section className="container mx-auto space-y-6 py-8 md:py-12 lg:py-24">
+            {/* Portals Section */}
+            <section className="container mx-auto space-y-12 py-12 md:py-24 lg:py-32 relative z-10">
                 <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
-                    <h2 className="font-heading text-3xl leading-[1.1] sm:text-3xl md:text-6xl font-bold">
-                        按类别探索
+                    <h2 className="font-heading text-3xl leading-[1.1] sm:text-3xl md:text-5xl font-bold">
+                        穿越知识星门
                     </h2>
                     <p className="max-w-[85%] leading-normal text-muted-foreground sm:text-lg sm:leading-7">
-                        无论你对什么感兴趣，这里都有适合你的项目。
+                        选择你的探索路径，开启不同领域的奇妙旅程。
                     </p>
                 </div>
-                <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3">
-                    <Link href="/explore?category=科学">
-                        <CategoryCard icon={<FlaskConical className="h-10 w-10 text-blue-500" />} title="科学" description="化学反应、生物观察、物理现象" delay={0.1} shouldReduceMotion={shouldReduceMotion} />
-                    </Link>
-                    <Link href="/explore?category=技术">
-                        <CategoryCard icon={<Cpu className="h-10 w-10 text-indigo-500" />} title="技术" description="编程、机器人、电子电路" delay={0.2} shouldReduceMotion={shouldReduceMotion} />
-                    </Link>
-                    <Link href="/explore?category=工程">
-                        <CategoryCard icon={<Rocket className="h-10 w-10 text-orange-500" />} title="工程" description="结构搭建、机械装置、3D打印" delay={0.3} shouldReduceMotion={shouldReduceMotion} />
-                    </Link>
-                    <Link href="/explore?category=艺术">
-                        <CategoryCard icon={<Palette className="h-10 w-10 text-pink-500" />} title="艺术" description="数字艺术、手工制作、创意设计" delay={0.4} shouldReduceMotion={shouldReduceMotion} />
-                    </Link>
-                    <Link href="/explore?category=数学">
-                        <CategoryCard icon={<Calculator className="h-10 w-10 text-green-500" />} title="数学" description="几何图形、逻辑谜题、数据可视化" delay={0.5} shouldReduceMotion={shouldReduceMotion} />
-                    </Link>
+
+                <div className="mx-auto grid justify-center gap-8 grid-cols-2 md:max-w-[64rem] md:grid-cols-3 lg:gap-12">
+                    <CategoryPortal
+                        href="/explore?category=科学"
+                        icon={<FlaskConical className="h-10 w-10 text-blue-400" />}
+                        title="科学"
+                        description="化学反应、生物观察、物理现象"
+                        color="bg-blue-500"
+                        delay={0.1}
+                    />
+                    <CategoryPortal
+                        href="/explore?category=技术"
+                        icon={<Cpu className="h-10 w-10 text-indigo-400" />}
+                        title="技术"
+                        description="编程、机器人、电子电路"
+                        color="bg-indigo-500"
+                        delay={0.2}
+                    />
+                    <CategoryPortal
+                        href="/explore?category=工程"
+                        icon={<Rocket className="h-10 w-10 text-orange-400" />}
+                        title="工程"
+                        description="结构搭建、机械装置、3D打印"
+                        color="bg-orange-500"
+                        delay={0.3}
+                    />
+                    <CategoryPortal
+                        href="/explore?category=艺术"
+                        icon={<Palette className="h-10 w-10 text-pink-400" />}
+                        title="艺术"
+                        description="数字艺术、手工制作、创意设计"
+                        color="bg-pink-500"
+                        delay={0.4}
+                    />
+                    <CategoryPortal
+                        href="/explore?category=数学"
+                        icon={<Calculator className="h-10 w-10 text-green-400" />}
+                        title="数学"
+                        description="几何图形、逻辑谜题、数据可视化"
+                        color="bg-green-500"
+                        delay={0.5}
+                    />
+                    {/* Placeholder for future category or "All" */}
+                    <CategoryPortal
+                        href="/explore"
+                        icon={<Sparkles className="h-10 w-10 text-purple-400" />}
+                        title="全部项目"
+                        description="探索所有无限可能"
+                        color="bg-purple-500"
+                        delay={0.6}
+                    />
                 </div>
             </section>
         </div>
     );
-}
-
-function CategoryCard({ icon, title, description, delay, shouldReduceMotion }: {
-    icon: React.ReactNode,
-    title: string,
-    description: string,
-    delay: number,
-    shouldReduceMotion: boolean | null
-}) {
-    return (
-        <motion.div
-            initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-            whileInView={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: shouldReduceMotion ? 0 : 0.3, delay: shouldReduceMotion ? 0 : delay }}
-            whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
-            className="relative overflow-hidden rounded-lg border bg-background p-2"
-        >
-            <div className="flex h-[180px] flex-col justify-between rounded-md p-6">
-                {icon}
-                <div className="space-y-2">
-                    <h3 className="font-bold">{title}</h3>
-                    <p className="text-sm text-muted-foreground">{description}</p>
-                </div>
-            </div>
-        </motion.div>
-    )
 }
