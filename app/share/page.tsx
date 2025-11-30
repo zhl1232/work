@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Upload, Save, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Project } from "@/lib/types";
 import { useProjects } from "@/context/project-context";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
@@ -136,7 +137,7 @@ export default function SharePage() {
             // Simulate network delay
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const newProject = {
+            const newProject: Project = {
                 id: Date.now(),
                 title: formData.title,
                 author: user?.user_metadata?.display_name || user?.email || "匿名用户",
@@ -153,7 +154,7 @@ export default function SharePage() {
                     description: step
                 })),
                 tags: [],
-                status: 'pending' as const  // 设置为待审核状态
+                status: 'pending'
             };
 
             addProject(newProject);

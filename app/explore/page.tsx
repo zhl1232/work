@@ -1,181 +1,42 @@
-"use client";
+import { Suspense } from 'react'
+import { getProjects, type ProjectFilters } from '@/lib/api/explore-data'
+import { ExploreClient } from './explore-client'
+import { ProjectCardSkeleton } from '@/components/ui/loading-skeleton'
 
-import { Button } from "@/components/ui/button";
-import { ProjectCard } from "@/components/features/project-card";
-import { ProjectCardSkeleton } from "@/components/ui/loading-skeleton";
+interface ExplorePageProps {
+    searchParams: Promise<{
+        q?: string
+        category?: string
+        difficulty?: string
+        page?: string
+    }>
+}
 
-import { cn } from "@/lib/utils";
-import { useSearchParams } from "next/navigation";
-import { AdvancedSearch } from "@/components/features/advanced-search";
-import { createClient } from "@/lib/supabase/client";
-import { Project } from "@/lib/types";
-import { useState, useRef, useCallback, useEffect } from "react";
+export default async function ExplorePage({ searchParams }: ExplorePageProps) {
+    // Await searchParams (required in Next.js 15)
+    const params = await searchParams
 
+    // 构建筛选条件
+    const filters: ProjectFilters = {
+        searchQuery: params.q,
+        category: params.category,
+        difficulty: params.difficulty as any,
+    }
 
+    // 服务端获取首屏数据
+    const { projects, hasMore } = await getProjects(filters, { page: 0, pageSize: 12 })
 
-const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-};
+    return (
+        <Suspense fallback={<LoadingSkeleton />}>
+            <ExploreClient
+                initialProjects={projects}
+                initialHasMore={hasMore}
+            />
+        </Suspense>
+    )
+}
 
-const categories = ["全部", "科学", "技术", "工程", "艺术", "数学", "其他"];
-
-import { Suspense } from "react";
-
-function ExploreContent() {
-    const searchParams = useSearchParams();
-    const initialQuery = searchParams.get("q") || "";
-    const initialCategory = searchParams.get("category") || "全部";
-
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-    const observer = useRef<IntersectionObserver | null>(null);
-    const supabase = createClient();
-
-    const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-    const [advancedFilters, setAdvancedFilters] = useState({
-        difficulty: "all",
-        duration: [0, 120],
-        materials: [] as string[]
-    });
-
-    const handleSearch = (query: string, filters: any) => {
-        setSearchQuery(query);
-        setAdvancedFilters(filters);
-        // Reset will be triggered by useEffect
-    };
-
-    const fetchProjects = useCallback(async (reset = false) => {
-        if (isLoading && !reset) return;
-
-        try {
-            setIsLoading(true);
-
-            const currentPage = reset ? 0 : page;
-            const PAGE_SIZE = 12;
-            const from = currentPage * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            let query = supabase
-                .from('projects')
-                .select(`
-                    *,
-                    profiles:author_id (display_name),
-                    project_materials (*),
-                    project_steps (*)
-                `)
-                .eq('status', 'approved')  // 只显示已审核通过的项目
-                .order('created_at', { ascending: false })
-                .range(from, to);
-
-            // 文本搜索 - 使用 ilike 查询标题和描述
-            if (searchQuery) {
-                query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-            }
-
-            // 分类筛选
-            if (selectedCategory !== "全部") {
-                query = query.eq('category', selectedCategory);
-            }
-
-            // 难度筛选 - 只在用户明确选择了难度时才筛选
-            if (advancedFilters.difficulty && advancedFilters.difficulty !== "all") {
-                query = query.eq('difficulty', advancedFilters.difficulty);
-            }
-
-            // 时长筛选 - 只在用户调整了滑块时才筛选（避免默认值过滤）
-            // 默认是 [0, 120]，只有改变了才应用筛选
-            const isDurationFiltered = advancedFilters.duration[0] !== 0 || advancedFilters.duration[1] !== 120;
-            if (isDurationFiltered) {
-                query = query
-                    .gte('duration', advancedFilters.duration[0])
-                    .lte('duration', advancedFilters.duration[1]);
-            }
-
-            // 材料筛选 - 需要先查询包含指定材料的项目
-            if (advancedFilters.materials.length > 0) {
-                const { data: projectsWithMaterials } = await supabase
-                    .from('project_materials')
-                    .select('project_id')
-                    .in('material', advancedFilters.materials);
-
-                if (projectsWithMaterials && projectsWithMaterials.length > 0) {
-                    const projectIds = Array.from(new Set(projectsWithMaterials.map(m => m.project_id)));
-                    query = query.in('id', projectIds);
-                } else {
-                    // 没有匹配的项目，返回空结果
-                    setProjects([]);
-                    setHasMore(false);
-                    return;
-                }
-            }
-
-            const { data, error } = await query;
-
-            if (error) {
-                console.error('Error fetching projects:', error);
-                return;
-            }
-
-            if (!data) {
-                console.warn('No data returned from projects query');
-                return;
-            }
-
-            const mappedProjects: Project[] = data.map((p: any) => ({
-                id: p.id,
-                title: p.title,
-                author: p.profiles?.display_name || 'Unknown',
-                author_id: p.author_id,
-                image: p.image_url || '',
-                category: p.category || '',
-                likes: p.likes_count,
-                description: p.description || '',
-                materials: p.project_materials?.map((m: any) => m.material) || [],
-                steps: p.project_steps?.map((s: any) => ({ title: s.title, description: s.description || '' })) || [],
-                comments: [], // Comments are not needed for the card view
-                difficulty: p.difficulty,
-                duration: p.duration,
-                tags: p.tags || []
-            }));
-
-            if (reset) {
-                setProjects(mappedProjects);
-                setPage(1);
-            } else {
-                setProjects(prev => [...prev, ...mappedProjects]);
-                setPage(prev => prev + 1);
-            }
-
-            setHasMore(data.length === PAGE_SIZE);
-        } catch (err) {
-            console.error('Exception in fetchProjects:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [isLoading, page, supabase, searchQuery, selectedCategory, advancedFilters]);
-
-    // Trigger fetch when filters change
-    useEffect(() => {
-        fetchProjects(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, selectedCategory, advancedFilters]);
-
-    // Infinite scroll observer
-    const lastProjectElementRef = useCallback((node: HTMLDivElement) => {
-        if (isLoading) return;
-        if (observer.current) observer.current.disconnect();
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
-                fetchProjects(false);
-            }
-        });
-        if (node) observer.current.observe(node);
-    }, [isLoading, hasMore, fetchProjects]);
-
+function LoadingSkeleton() {
     return (
         <div className="container mx-auto py-8">
             <div className="flex flex-col gap-6 mb-8">
@@ -184,84 +45,14 @@ function ExploreContent() {
                         <h1 className="text-3xl font-bold tracking-tight">探索项目</h1>
                         <p className="text-muted-foreground">探索社区中最酷的 STEAM 创意。</p>
                     </div>
-                    <div className="flex w-full items-center space-x-2 md:w-auto md:min-w-[400px]">
-                        <AdvancedSearch onSearch={handleSearch} />
-                    </div>
-                </div>
-
-                {/* Category Filter Chips */}
-                <div className="flex flex-wrap gap-2">
-                    {categories.map((category) => (
-                        <button
-                            key={category}
-                            onClick={() => setSelectedCategory(category)}
-                            className={cn(
-                                "px-4 py-1.5 rounded-full text-sm font-medium transition-colors border",
-                                selectedCategory === category
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background hover:bg-muted text-muted-foreground border-input"
-                            )}
-                        >
-                            {category}
-                        </button>
-                    ))}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project, index) => {
-                    if (projects.length === index + 1) {
-                        return (
-                            <div ref={lastProjectElementRef} key={project.id}>
-                                <ProjectCard project={project} variants={item} searchQuery={searchQuery} />
-                            </div>
-                        );
-                    } else {
-                        return <ProjectCard key={project.id} project={project} variants={item} searchQuery={searchQuery} />;
-                    }
-                })}
-
-                {isLoading && (
-                    <>
-                        {[1, 2, 3].map((i) => (
-                            <ProjectCardSkeleton key={`skeleton-${i}`} />
-                        ))}
-                    </>
-                )}
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <ProjectCardSkeleton key={`skeleton-${i}`} />
+                ))}
             </div>
-
-            {!isLoading && projects.length === 0 && (
-                <div className="text-center py-20">
-                    <div className="text-4xl mb-4">🔍</div>
-                    <h3 className="text-lg font-semibold mb-2">没有找到相关项目</h3>
-                    <p className="text-muted-foreground">
-                        换个关键词或者类别试试看？
-                    </p>
-                    <Button
-                        variant="link"
-                        onClick={() => {
-                            setSearchQuery("");
-                            setSelectedCategory("全部");
-                            setAdvancedFilters({
-                                difficulty: "all",
-                                duration: [0, 120],
-                                materials: []
-                            });
-                        }}
-                        className="mt-4"
-                    >
-                        清除所有筛选
-                    </Button>
-                </div>
-            )}
         </div>
-    );
-}
-
-export default function ExplorePage() {
-    return (
-        <Suspense fallback={<div className="container mx-auto py-8"><ProjectCardSkeleton /></div>}>
-            <ExploreContent />
-        </Suspense>
-    );
+    )
 }

@@ -1,55 +1,28 @@
-export type Comment = {
-    id: string | number;
-    author: string;
-    userId?: string;
-    avatar?: string;
-    content: string;
-    date: string;
-    parent_id?: number | null;
-    reply_to_user_id?: string | null;
-    reply_to_username?: string | null;
-};
+/**
+ * @deprecated 此文件已被 deprecated，请使用 @/lib/mappers/types
+ * 新的类型定义从数据库类型映射而来，作为单一事实来源
+ * 
+ * 迁移指南：
+ * - import { Project } from '@/lib/types' → import { Project } from '@/lib/mappers/types'
+ * - import { Comment } from '@/lib/types' → import { Comment } from '@/lib/mappers/types'
+ * 
+ * 此文件将在所有引用更新后移除
+ */
 
-export type Discussion = {
-    id: string | number;
-    title: string;
-    author: string;
-    content: string;
-    date: string;
-    replies: Comment[];
-    likes: number;
-    tags: string[];
-};
+// 重新导出新类型以保持向后兼容
+export type {
+    Project,
+    ProjectStep,
+    Comment,
+    Discussion,
+    Challenge,
+    Profile
+} from '@/lib/mappers/types'
 
-export type Challenge = {
-    id: string | number;
-    title: string;
-    description: string;
-    image: string;
-    participants: number;
-    daysLeft: number; // 保留用于兼容性
-    endDate?: string; // ISO格式的结束日期,用于倒计时组件
-    joined: boolean;
-    tags: string[];
-};
-
-export type Project = {
-    id: string | number;
-    title: string;
-    author: string;
-    author_id: string; // Added for reliable ownership check
-    image: string;
-    category: string;
-    likes: number;
-    description?: string;
-    materials?: string[];
-    steps?: { title: string; description: string }[];
-    comments?: Comment[];
-    // 搜索功能相关字段
-    difficulty?: 'easy' | 'medium' | 'hard';
-    duration?: number; // 预计完成时长（分钟）
-    tags?: string[];
-    // 审核状态
-    status?: 'draft' | 'pending' | 'approved' | 'rejected';
-};
-
+export {
+    mapDbProject,
+    mapDbComment,
+    mapDbDiscussion,
+    mapDbChallenge,
+    mapDbProfile
+} from '@/lib/mappers/types'
