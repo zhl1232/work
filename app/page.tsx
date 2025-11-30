@@ -3,33 +3,41 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FlaskConical, Rocket, Palette, Calculator, Cpu } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 export default function Home() {
+    const shouldReduceMotion = useReducedMotion();
+
+    // 根据用户的减少动画偏好调整动画配置
+    const fadeInVariants = shouldReduceMotion
+        ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
+        : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
+
+    const scaleVariants = shouldReduceMotion
+        ? { initial: { opacity: 1, scale: 1 }, whileInView: { opacity: 1, scale: 1 } }
+        : { initial: { opacity: 0, scale: 0.9 }, whileInView: { opacity: 1, scale: 1 } };
+
     return (
         <div className="flex-1">
             <section className="space-y-6 pb-8 pt-6 md:pb-12 md:pt-10 lg:py-32">
                 <div className="container mx-auto flex max-w-[64rem] flex-col items-center gap-4 text-center">
                     <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
+                        {...fadeInVariants}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.5 }}
                         className="font-heading text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary"
                     >
                         激发好奇心，<br />创造你的世界
                     </motion.h1>
                     <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                        {...fadeInVariants}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: shouldReduceMotion ? 0 : 0.2 }}
                         className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8"
                     >
                         加入最大的 STEAM 创意社区。探索科学实验、工程挑战和艺术创作。分享你的作品，启发他人。
                     </motion.p>
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
+                        {...fadeInVariants}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: shouldReduceMotion ? 0 : 0.4 }}
                         className="space-x-4"
                     >
                         <Link href="/explore"><Button size="lg">开始探索</Button></Link>
@@ -49,19 +57,19 @@ export default function Home() {
                 </div>
                 <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3">
                     <Link href="/explore?category=科学">
-                        <CategoryCard icon={<FlaskConical className="h-10 w-10 text-blue-500" />} title="科学" description="化学反应、生物观察、物理现象" delay={0.1} />
+                        <CategoryCard icon={<FlaskConical className="h-10 w-10 text-blue-500" />} title="科学" description="化学反应、生物观察、物理现象" delay={0.1} shouldReduceMotion={shouldReduceMotion} />
                     </Link>
                     <Link href="/explore?category=技术">
-                        <CategoryCard icon={<Cpu className="h-10 w-10 text-indigo-500" />} title="技术" description="编程、机器人、电子电路" delay={0.2} />
+                        <CategoryCard icon={<Cpu className="h-10 w-10 text-indigo-500" />} title="技术" description="编程、机器人、电子电路" delay={0.2} shouldReduceMotion={shouldReduceMotion} />
                     </Link>
                     <Link href="/explore?category=工程">
-                        <CategoryCard icon={<Rocket className="h-10 w-10 text-orange-500" />} title="工程" description="结构搭建、机械装置、3D打印" delay={0.3} />
+                        <CategoryCard icon={<Rocket className="h-10 w-10 text-orange-500" />} title="工程" description="结构搭建、机械装置、3D打印" delay={0.3} shouldReduceMotion={shouldReduceMotion} />
                     </Link>
                     <Link href="/explore?category=艺术">
-                        <CategoryCard icon={<Palette className="h-10 w-10 text-pink-500" />} title="艺术" description="数字艺术、手工制作、创意设计" delay={0.4} />
+                        <CategoryCard icon={<Palette className="h-10 w-10 text-pink-500" />} title="艺术" description="数字艺术、手工制作、创意设计" delay={0.4} shouldReduceMotion={shouldReduceMotion} />
                     </Link>
                     <Link href="/explore?category=数学">
-                        <CategoryCard icon={<Calculator className="h-10 w-10 text-green-500" />} title="数学" description="几何图形、逻辑谜题、数据可视化" delay={0.5} />
+                        <CategoryCard icon={<Calculator className="h-10 w-10 text-green-500" />} title="数学" description="几何图形、逻辑谜题、数据可视化" delay={0.5} shouldReduceMotion={shouldReduceMotion} />
                     </Link>
                 </div>
             </section>
@@ -69,14 +77,20 @@ export default function Home() {
     );
 }
 
-function CategoryCard({ icon, title, description, delay }: { icon: React.ReactNode, title: string, description: string, delay: number }) {
+function CategoryCard({ icon, title, description, delay, shouldReduceMotion }: {
+    icon: React.ReactNode,
+    title: string,
+    description: string,
+    delay: number,
+    shouldReduceMotion: boolean | null
+}) {
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
+            whileInView={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.3, delay }}
-            whileHover={{ scale: 1.05 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.3, delay: shouldReduceMotion ? 0 : delay }}
+            whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
             className="relative overflow-hidden rounded-lg border bg-background p-2"
         >
             <div className="flex h-[180px] flex-col justify-between rounded-md p-6">

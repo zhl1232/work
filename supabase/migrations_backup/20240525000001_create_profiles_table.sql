@@ -6,7 +6,6 @@ create table if not exists profiles (
   display_name text,
   bio text,
   avatar_url text,
-  created_at timestamp with time zone default now(),
 
   constraint username_length check (char_length(username) >= 3)
 );
@@ -15,12 +14,6 @@ create table if not exists profiles (
 -- See https://supabase.com/docs/guides/auth/row-level-security for more details.
 alter table profiles enable row level security;
 
--- 删除已存在的策略（如果有）
-drop policy if exists "Public profiles are viewable by everyone." on profiles;
-drop policy if exists "Users can insert their own profile." on profiles;
-drop policy if exists "Users can update own profile." on profiles;
-
--- 重新创建策略
 create policy "Public profiles are viewable by everyone."
   on profiles for select
   using ( true );

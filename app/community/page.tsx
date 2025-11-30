@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useCommunity } from "@/context/community-context";
 import { DiscussionList } from "@/components/features/community/discussion-list";
 import { ChallengeCard } from "@/components/features/community/challenge-card";
+import { ChallengeCardSkeleton } from "@/components/ui/loading-skeleton";
 
 import { MessageSquare, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 export default function CommunityPage() {
     const { challenges } = useCommunity();
     const [activeTab, setActiveTab] = useState<"discussions" | "challenges">("discussions");
+    const [isLoading, setIsLoading] = useState(false);
 
     return (
         <>
@@ -65,11 +67,19 @@ export default function CommunityPage() {
                                 <h2 className="text-2xl font-bold">本月挑战</h2>
                                 <p className="text-muted-foreground">参与挑战，赢取限定徽章！</p>
                             </div>
-                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                                {challenges.map((challenge) => (
-                                    <ChallengeCard key={challenge.id} challenge={challenge} />
-                                ))}
-                            </div>
+                            {isLoading ? (
+                                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <ChallengeCardSkeleton key={i} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                    {challenges.map((challenge) => (
+                                        <ChallengeCard key={challenge.id} challenge={challenge} />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

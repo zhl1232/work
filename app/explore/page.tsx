@@ -50,7 +50,7 @@ function ExploreContent() {
 
     const fetchProjects = useCallback(async (reset = false) => {
         if (isLoading && !reset) return;
-        
+
         try {
             setIsLoading(true);
 
@@ -67,6 +67,7 @@ function ExploreContent() {
                     project_materials (*),
                     project_steps (*)
                 `)
+                .eq('status', 'approved')  // 只显示已审核通过的项目
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
@@ -100,7 +101,7 @@ function ExploreContent() {
                     .from('project_materials')
                     .select('project_id')
                     .in('material', advancedFilters.materials);
-                
+
                 if (projectsWithMaterials && projectsWithMaterials.length > 0) {
                     const projectIds = Array.from(new Set(projectsWithMaterials.map(m => m.project_id)));
                     query = query.in('id', projectIds);
@@ -181,7 +182,7 @@ function ExploreContent() {
                 <div className="flex flex-col items-start gap-4 md:flex-row md:justify-between md:items-center">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">探索项目</h1>
-                        <p className="text-muted-foreground">发现社区中最酷的 STEAM 创意。</p>
+                        <p className="text-muted-foreground">探索社区中最酷的 STEAM 创意。</p>
                     </div>
                     <div className="flex w-full items-center space-x-2 md:w-auto md:min-w-[400px]">
                         <AdvancedSearch onSearch={handleSearch} />
@@ -219,7 +220,7 @@ function ExploreContent() {
                         return <ProjectCard key={project.id} project={project} variants={item} searchQuery={searchQuery} />;
                     }
                 })}
-                
+
                 {isLoading && (
                     <>
                         {[1, 2, 3].map((i) => (

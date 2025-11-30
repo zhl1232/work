@@ -1,0 +1,71 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:recommended"
+    ],
+    "timezone": "Asia/Shanghai",
+    "schedule": [
+        "before 3am on Monday"
+    ],
+    "packageRules": [
+        {
+            "description": "组合所有非主要版本更新",
+            "matchPackagePatterns": [
+                "*"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch"
+            ],
+            "groupName": "所有非主要版本依赖",
+            "groupSlug": "all-minor-patch"
+        },
+        {
+            "description": "TypeScript 类型定义自动合并",
+            "matchPackagePatterns": [
+                "@types/*"
+            ],
+            "groupName": "TypeScript 类型定义",
+            "automerge": true
+        },
+        {
+            "description": "Supabase 相关包统一更新",
+            "matchPackagePatterns": [
+                "^@supabase/"
+            ],
+            "groupName": "Supabase 依赖包",
+            "schedule": [
+                "before 3am on Monday"
+            ]
+        },
+        {
+            "description": "Next.js 和 React 主版本更新需要手动审查",
+            "matchPackagePatterns": [
+                "^next$",
+                "^react",
+                "^react-dom"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "dependencyDashboardApproval": true
+        },
+        {
+            "description": "测试相关依赖",
+            "matchPackagePatterns": [
+                "jest",
+                "@testing-library"
+            ],
+            "groupName": "测试依赖"
+        }
+    ],
+    "vulnerabilityAlerts": {
+        "labels": [
+            "security"
+        ],
+        "assignees": []
+    },
+    "prConcurrentLimit": 5,
+    "prCreation": "not-pending",
+    "rebaseWhen": "behind-base-branch"
+}

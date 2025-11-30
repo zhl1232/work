@@ -32,7 +32,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [likedProjects, setLikedProjects] = useState<Set<string | number>>(new Set());
     const [completedProjects, setCompletedProjects] = useState<Set<string | number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [supabase] = useState(() => createClient());
     const { user, profile } = useAuth();
     const { addXp, checkBadges } = useGamification();
@@ -62,7 +62,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             .from('likes')
             .select('project_id')
             .eq('user_id', user.id);
-        
+
         if (likes) {
             setLikedProjects(new Set(likes.map(l => l.project_id)));
         }
@@ -71,7 +71,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             .from('completed_projects')
             .select('project_id')
             .eq('user_id', user.id);
-        
+
         if (completed) {
             setCompletedProjects(new Set(completed.map(c => c.project_id)));
         }
@@ -128,7 +128,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 likes_count: 0,
                 difficulty: project.difficulty,
                 duration: project.duration,
-                tags: project.tags || []
+                tags: project.tags || [],
+                status: project.status || 'pending'  // 默认为待审核状态
             })
             .select()
             .single();
@@ -163,7 +164,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         // Award XP for publishing a project
         addXp(50, "发布新项目");
-        
+
         // Check badges
         const stats = await getUserStats();
         // Manually increment published count since the new project might not be indexed yet or we want immediate feedback
@@ -216,7 +217,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
         // Award XP for commenting
         addXp(5, "发表评论");
-        
+
         // Check badges
         const stats = await getUserStats();
         checkBadges({
@@ -233,7 +234,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         const pid = typeof projectId === 'string' ? parseInt(projectId) : projectId;
 
         const isLiked = likedProjectsRef.current.has(projectId);
-        
+
         // Optimistic update
         setLikedProjects(prev => {
             const newSet = new Set(prev);
@@ -275,11 +276,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             await supabase.from('completed_projects').delete().eq('user_id', user.id).eq('project_id', pid);
         } else {
             await supabase.from('completed_projects').insert({ user_id: user.id, project_id: pid });
-            
+
             // Award XP for completing a project
             addXp(20, "完成项目");
-            
-             // Check badges
+
+            // Check badges
             const stats = await getUserStats();
             checkBadges({
                 ...stats,

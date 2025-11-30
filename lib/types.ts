@@ -49,5 +49,7 @@ export type Project = {
     difficulty?: 'easy' | 'medium' | 'hard';
     duration?: number; // 预计完成时长（分钟）
     tags?: string[];
+    // 审核状态
+    status?: 'draft' | 'pending' | 'approved' | 'rejected';
 };
 

@@ -55,31 +55,31 @@ export default function ProfilePage() {
             .eq('author_id', user.id)
             .order('created_at', { ascending: false })
             .then(({ data }) => data),
-          
+
           // 查询用户收藏的项目
           likedProjects.size > 0
             ? supabase
-                .from('projects')
-                .select(`
+              .from('projects')
+              .select(`
                   *,
                   profiles:author_id (display_name)
                 `)
-                .in('id', Array.from(likedProjects))
-                .order('created_at', { ascending: false })
-                .then(({ data }) => data)
+              .in('id', Array.from(likedProjects))
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data)
             : Promise.resolve(null),
-          
+
           // 查询用户完成的项目
           completedProjects.size > 0
             ? supabase
-                .from('projects')
-                .select(`
+              .from('projects')
+              .select(`
                   *,
                   profiles:author_id (display_name)
                 `)
-                .in('id', Array.from(completedProjects))
-                .order('created_at', { ascending: false })
-                .then(({ data }) => data)
+              .in('id', Array.from(completedProjects))
+              .order('created_at', { ascending: false })
+              .then(({ data }) => data)
             : Promise.resolve(null)
         ])
 
@@ -150,13 +150,13 @@ export default function ProfilePage() {
           {/* 用户信息 */}
           <div className="flex-1 text-center md:text-left w-full">
             <div className="flex flex-col md:flex-row justify-between items-center md:items-start mb-4">
-                <div>
-                    <h1 className="text-3xl font-bold mb-2">{userName}</h1>
-                    <p className="text-muted-foreground">{userEmail}</p>
-                </div>
-                <div className="w-full md:w-64 mt-4 md:mt-0">
-                    <LevelProgress />
-                </div>
+              <div>
+                <h1 className="text-3xl font-bold mb-2">{userName}</h1>
+                <p className="text-muted-foreground">{userEmail}</p>
+              </div>
+              <div className="w-full md:w-64 mt-4 md:mt-0">
+                <LevelProgress />
+              </div>
             </div>
           </div>
 
@@ -170,38 +170,38 @@ export default function ProfilePage() {
       {/* 统计仪表盘 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">已发布项目</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-2xl font-bold">{myProjects.length}</div>
-            </CardContent>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">已发布项目</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{myProjects.length}</div>
+          </CardContent>
         </Card>
         <Card>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">获赞总数</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-2xl font-bold">
-                    {myProjects.reduce((acc, p) => acc + p.likes, 0)}
-                </div>
-            </CardContent>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">获赞总数</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">
+              {myProjects.reduce((acc, p) => acc + p.likes, 0)}
+            </div>
+          </CardContent>
         </Card>
         <Card>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">收藏项目</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-2xl font-bold">{likedProjects.size}</div>
-            </CardContent>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">收藏项目</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{likedProjects.size}</div>
+          </CardContent>
         </Card>
         <Card>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">已完成挑战</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-2xl font-bold">{completedProjects.size}</div>
-            </CardContent>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">已完成挑战</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{completedProjects.size}</div>
+          </CardContent>
         </Card>
       </div>
 
@@ -218,21 +218,21 @@ export default function ProfilePage() {
           {BADGES.map((badge) => {
             const isUnlocked = unlockedBadges.has(badge.id);
             return (
-            <div
-              key={badge.id}
-              className={`p-4 rounded-lg border text-center transition-all ${
-                isUnlocked
+              <div
+                key={badge.id}
+                className={`p-4 rounded-lg border text-center transition-all ${isUnlocked
                   ? 'bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 scale-100'
                   : 'bg-muted/30 opacity-50 grayscale'
-              }`}
-            >
-              <div className="text-3xl mb-2 flex justify-center">
-                {badge.icon}
+                  }`}
+              >
+                <div className="text-3xl mb-2 flex justify-center">
+                  {badge.icon}
+                </div>
+                <div className="font-medium text-sm mb-1">{badge.name}</div>
+                <div className="text-xs text-muted-foreground">{badge.description}</div>
               </div>
-              <div className="font-medium text-sm mb-1">{badge.name}</div>
-              <div className="text-xs text-muted-foreground">{badge.description}</div>
-            </div>
-          )})}
+            )
+          })}
         </div>
       </div>
 
@@ -264,10 +264,10 @@ export default function ProfilePage() {
       {/* 项目列表 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 判断是否正在加载 */}
-        {isInitialLoad || 
-         (activeTab === 'my-projects' && isInitialLoad) ||
-         (activeTab === 'liked' && likedProjects.size > 0 && likedProjectsList.length === 0) ||
-         (activeTab === 'completed' && completedProjects.size > 0 && completedProjectsList.length === 0) ? (
+        {isInitialLoad ||
+          (activeTab === 'my-projects' && isInitialLoad) ||
+          (activeTab === 'liked' && likedProjects.size > 0 && likedProjectsList.length === 0) ||
+          (activeTab === 'completed' && completedProjects.size > 0 && completedProjectsList.length === 0) ? (
           <ProjectListSkeleton />
         ) : (
           <>
@@ -280,7 +280,7 @@ export default function ProfilePage() {
               </div>
             )}
             {activeTab === 'my-projects' &&
-              myProjects.map((project) => <ProjectCard key={project.id} project={project} />)}
+              myProjects.map((project) => <ProjectCard key={project.id} project={project} showStatus={true} />)}
 
             {activeTab === 'liked' && likedProjectsList.length === 0 && (
               <div className="col-span-full text-center py-12 text-muted-foreground">

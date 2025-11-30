@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Medal, Crown } from "lucide-react";
+import { LeaderboardItemSkeleton } from "@/components/ui/leaderboard-skeleton";
+import { useState, useEffect } from "react";
 
 interface LeaderboardUser {
     id: string;
@@ -29,6 +31,13 @@ const MOCK_USERS: LeaderboardUser[] = [
 export default function LeaderboardPage() {
     const { user, profile } = useAuth();
     const { xp, level, unlockedBadges } = useGamification();
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Simulate loading
+    useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Combine current user with mock users and sort
     const currentUser: LeaderboardUser | null = user ? {
@@ -78,37 +87,46 @@ export default function LeaderboardPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {leaderboardData.map((user, index) => (
-                            <div 
-                                key={user.id}
-                                className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                                    user.isCurrentUser ? "bg-primary/5 border-primary/50" : "bg-card hover:bg-accent/50"
-                                }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center justify-center w-8">
-                                        {getRankIcon(index)}
-                                    </div>
-                                    <Avatar className="h-10 w-10 border-2 border-background">
-                                        <AvatarImage src={user.avatar || undefined} />
-                                        <AvatarFallback>{user.name[0]}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <div className="font-semibold flex items-center gap-2">
-                                            {user.name}
-                                            {user.isCurrentUser && <Badge variant="secondary" className="text-xs">你</Badge>}
+                        {isLoading ? (
+                            <>
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <LeaderboardItemSkeleton key={i} />
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                {leaderboardData.map((user, index) => (
+                                    <div
+                                        key={user.id}
+                                        className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${user.isCurrentUser ? "bg-primary/5 border-primary/50" : "bg-card hover:bg-accent/50"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center justify-center w-8">
+                                                {getRankIcon(index)}
+                                            </div>
+                                            <Avatar className="h-10 w-10 border-2 border-background">
+                                                <AvatarImage src={user.avatar || undefined} />
+                                                <AvatarFallback>{user.name[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <div className="font-semibold flex items-center gap-2">
+                                                    {user.name}
+                                                    {user.isCurrentUser && <Badge variant="secondary" className="text-xs">你</Badge>}
+                                                </div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    Lv.{user.level} • {user.badges} 枚徽章
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-sm text-muted-foreground">
-                                            Lv.{user.level} • {user.badges} 枚徽章
+                                        <div className="text-right">
+                                            <div className="text-xl font-bold text-primary">{user.xp.toLocaleString()}</div>
+                                            <div className="text-xs text-muted-foreground">XP</div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-xl font-bold text-primary">{user.xp.toLocaleString()}</div>
-                                    <div className="text-xs text-muted-foreground">XP</div>
-                                </div>
-                            </div>
-                        ))}
+                                ))}
+                            </>
+                        )}
                     </div>
                 </CardContent>
             </Card>

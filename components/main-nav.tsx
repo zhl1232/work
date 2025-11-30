@@ -11,7 +11,7 @@ export function MainNav() {
     const routes = [
         {
             href: "/explore",
-            label: "发现",
+            label: "探索",
             active: pathname === "/explore",
         },
         {
@@ -26,7 +26,7 @@ export function MainNav() {
         },
         {
             href: "/profile",
-            label: "我的",
+            label: "个人中心",
             active: pathname === "/profile",
         },
     ];

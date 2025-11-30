@@ -2,9 +2,9 @@
 
 import { useAuth } from '@/context/auth-context'
 import { Button } from '@/components/ui/button'
-import { 
-  LogOut, 
-  User as UserIcon, 
+import {
+  LogOut,
+  User as UserIcon,
   Loader2,
   LayoutDashboard
 } from 'lucide-react'
@@ -72,10 +72,10 @@ export function UserButton() {
         <DropdownMenuItem asChild>
           <Link href="/profile" className="cursor-pointer">
             <UserIcon className="mr-2 h-4 w-4" />
-            <span>个人资料</span>
+            <span>个人中心</span>
           </Link>
         </DropdownMenuItem>
-        
+
         {canReview && (
           <DropdownMenuItem asChild>
             <Link href="/admin" className="cursor-pointer">
@@ -84,7 +84,7 @@ export function UserButton() {
             </Link>
           </DropdownMenuItem>
         )}
-        
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
           <LogOut className="mr-2 h-4 w-4" />

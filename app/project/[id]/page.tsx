@@ -27,21 +27,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const [newComment, setNewComment] = useState("");
     const [replyingTo, setReplyingTo] = useState<number | string | null>(null);
     const [replyContent, setReplyContent] = useState("");
-    
+
     // Local state for project data
     const [project, setProject] = useState<Project | null>(null);
     const [relatedProjects, setRelatedProjects] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
-    
-    // Supabase client
-    const supabase = createClient();
 
     // Fetch project data
     useEffect(() => {
+        const supabase = createClient(); // 在 useEffect 内部创建客户端,避免依赖警告
+
         const fetchProject = async () => {
             setIsLoading(true);
-            
+
             // First check if it exists in context (optional, but good for cache)
             const cachedProject = projects.find((p) => String(p.id) === unwrappedParams.id);
             if (cachedProject) {
@@ -109,7 +108,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     .eq('category', mappedProject.category)
                     .neq('id', mappedProject.id)
                     .limit(3);
-                
+
                 if (relatedData) {
                     setRelatedProjects(relatedData.map((p: any) => ({
                         id: p.id,
@@ -199,13 +198,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         if (!newComment.trim()) return;
 
         const submitComment = async () => {
-             const addedComment = await addComment(project.id, {
-                id: 0, 
-                author: "Me", 
+            const addedComment = await addComment(project.id, {
+                id: 0,
+                author: "Me",
                 content: newComment,
                 date: "",
             });
-            
+
             if (addedComment) {
                 setProject((prev) => {
                     if (!prev) return null;
@@ -246,7 +245,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             }, parentId);
 
             if (addedReply) {
-                 setProject((prev) => {
+                setProject((prev) => {
                     if (!prev) return null;
                     return {
                         ...prev,
@@ -369,11 +368,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                                         return (
                                             <div key={comment.id} className={isNested ? "ml-8 mt-3" : ""} id={`comment-${comment.id}`}>
-                                                <div className={`rounded-lg p-4 border transition-colors ${
-                                                    isNested 
-                                                        ? "bg-background/50 border-l-2 border-muted-foreground/20" 
+                                                <div className={`rounded-lg p-4 border transition-colors ${isNested
+                                                        ? "bg-background/50 border-l-2 border-muted-foreground/20"
                                                         : "bg-muted/20 border-l-2 border-primary/30"
-                                                }`}>
+                                                    }`}>
                                                     <div className="flex gap-3 group">
                                                         <Avatar className="h-8 w-8 shrink-0">
                                                             <AvatarImage src={comment.avatar || ""} />
@@ -427,8 +425,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                                                             {/* 内嵌回复框 */}
                                                             {isReplying && (
-                                                                <form 
-                                                                    onSubmit={(e) => handleSubmitReply(e, Number(comment.id), comment.userId, comment.author)} 
+                                                                <form
+                                                                    onSubmit={(e) => handleSubmitReply(e, Number(comment.id), comment.userId, comment.author)}
                                                                     className="mt-3 space-y-2 bg-accent/5 rounded-md p-3 border border-accent/20"
                                                                 >
                                                                     <div className="text-sm text-muted-foreground">
