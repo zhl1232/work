@@ -154,6 +154,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     project_id: newProject.id,
                     title: s.title,
                     description: s.description,
+                    image_url: s.image_url || null,  // ✅ 添加image_url字段
                     sort_order: index
                 })));
         }
