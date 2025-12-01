@@ -74,14 +74,37 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                             {project.steps && project.steps.length > 0 && (
                                 <>
                                     <h3>制作步骤</h3>
-                                    <ol className="list-decimal pl-5 space-y-4">
+                                    <div className="not-prose space-y-6">
                                         {project.steps.map((step, index) => (
-                                            <li key={index}>
-                                                <strong>{step.title}</strong>
-                                                <p>{step.description}</p>
-                                            </li>
+                                            <div
+                                                key={index}
+                                                className="rounded-lg border bg-card overflow-hidden"
+                                            >
+                                                {/* 步骤图片 - 图上 */}
+                                                {step.image_url && (
+                                                    <div className="aspect-video w-full relative bg-muted">
+                                                        <Image
+                                                            src={step.image_url}
+                                                            alt={step.title}
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    </div>
+                                                )}
+                                                
+                                                {/* 步骤内容 - 文下 */}
+                                                <div className="p-4 space-y-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+                                                            {index + 1}
+                                                        </div>
+                                                        <h4 className="font-semibold text-lg">{step.title}</h4>
+                                                    </div>
+                                                    <p className="text-muted-foreground pl-11">{step.description}</p>
+                                                </div>
+                                            </div>
                                         ))}
-                                    </ol>
+                                    </div>
                                 </>
                             )}
                         </div>

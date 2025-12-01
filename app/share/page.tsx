@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
-import { Upload, Save, CheckCircle2 } from "lucide-react";
+import { ImageUpload } from "@/components/ui/image-upload";
+import { Upload, Save, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Project } from "@/lib/types";
 import { useProjects } from "@/context/project-context";
@@ -14,6 +15,7 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getProjectCoverImage } from "@/lib/config/category-images";
 
 const CATEGORIES = ["科学", "技术", "工程", "艺术", "数学", "其他"];
 const DIFFICULTIES = [
@@ -30,13 +32,20 @@ const DURATION_CONFIG = {
     DEFAULT: 60     // 默认1小时
 };
 
+interface StepFormData {
+    title: string;
+    description: string;
+    image_url: string | null;
+}
+
 interface FormData {
     title: string;
     category: string;
     difficulty: string;
     duration: number;
     materials: string;
-    description: string;
+    coverImage: string | null;
+    steps: StepFormData[];
 }
 
 const DRAFT_KEY = "project_draft";
@@ -54,7 +63,8 @@ export default function SharePage() {
         difficulty: "beginner",
         duration: DURATION_CONFIG.DEFAULT,
         materials: "",
-        description: ""
+        coverImage: null,
+        steps: [{ title: "步骤 1", description: "", image_url: null }]
     });
 
     // 检查登录状态
@@ -71,7 +81,12 @@ export default function SharePage() {
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft);
-                    setFormData(draft);
+                    // 兼容旧格式的草稿，确保必需字段存在
+                    setFormData({
+                        ...draft,
+                        coverImage: draft.coverImage || null,
+                        steps: draft.steps || [{ title: "步骤 1", description: "", image_url: null }]
+                    });
                     toast({
                         title: "已恢复草稿",
                         description: "自动恢复了您上次保存的内容",
@@ -94,8 +109,41 @@ export default function SharePage() {
         return () => clearTimeout(timer);
     }, [formData, user]);
 
-    const handleInputChange = (field: keyof FormData, value: string | number) => {
+    const handleInputChange = (field: keyof Omit<FormData, 'steps' | 'coverImage'>, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleCoverImageChange = (url: string | null) => {
+        setFormData(prev => ({ ...prev, coverImage: url }));
+    };
+
+    const handleStepChange = (index: number, field: keyof StepFormData, value: string | null) => {
+        setFormData(prev => {
+            const newSteps = [...prev.steps];
+            newSteps[index] = { ...newSteps[index], [field]: value };
+            return { ...prev, steps: newSteps };
+        });
+    };
+
+    const addStep = () => {
+        setFormData(prev => ({
+            ...prev,
+            steps: [...prev.steps, { title: `步骤 ${prev.steps.length + 1}`, description: "", image_url: null }]
+        }));
+    };
+
+    const removeStep = (index: number) => {
+        if (formData.steps.length <= 1) {
+            toast({
+                title: "至少需要一个步骤",
+                variant: "destructive"
+            });
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            steps: prev.steps.filter((_, i) => i !== index)
+        }));
     };
 
     const handleSaveDraft = () => {
@@ -123,9 +171,9 @@ export default function SharePage() {
             return;
         }
 
-        if (!formData.description.trim()) {
+        if (formData.steps.length === 0 || !formData.steps.some(step => step.description.trim())) {
             toast({
-                title: "请填写制作步骤",
+                title: "请至少添加一个步骤说明",
                 variant: "destructive",
             });
             return;
@@ -137,21 +185,25 @@ export default function SharePage() {
             // Simulate network delay
             await new Promise(resolve => setTimeout(resolve, 1000));
 
+            // 获取封面图片（用户上传的或类别主题图）
+            const coverImage = getProjectCoverImage(formData.category, formData.coverImage);
+
             const newProject: Project = {
                 id: Date.now(),
                 title: formData.title,
                 author: user?.user_metadata?.display_name || user?.email || "匿名用户",
                 author_id: user!.id,
-                image: "https://images.unsplash.com/photo-1518152006812-edab29b069ac?q=80&w=2070&auto=format&fit=crop",
+                image: coverImage,
                 category: formData.category,
                 difficulty: formData.difficulty === "beginner" ? "easy" : formData.difficulty === "intermediate" ? "medium" : "hard",
                 duration: formData.duration,
                 likes: 0,
-                description: formData.description.slice(0, 100) + "...",
+                description: formData.steps.length > 0 ? formData.steps[0].description.slice(0, 100) + "..." : "",
                 materials: formData.materials.split("\n").filter(item => item.trim() !== ""),
-                steps: formData.description.split("\n").filter(item => item.trim() !== "").map((step, index) => ({
-                    title: `步骤 ${index + 1}`,
-                    description: step
+                steps: formData.steps.map((step, index) => ({
+                    title: step.title || `步骤 ${index + 1}`,
+                    description: step.description,
+                    image_url: step.image_url || undefined
                 })),
                 tags: [],
                 status: 'pending'
@@ -174,6 +226,7 @@ export default function SharePage() {
                 router.push("/profile");  // 跳转到个人中心页面
             }, 1500);
         } catch (error) {
+            console.error('Project submission error:', error);
             toast({
                 title: "提交失败",
                 description: "请稍后再试",
@@ -190,7 +243,7 @@ export default function SharePage() {
     }
 
     return (
-        <div className="container mx-auto py-8 max-w-3xl">
+        <div className="container mx-auto py-8 max-w-4xl">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight mb-2">分享你的创意</h1>
                 <p className="text-muted-foreground">将你的 STEAM 项目展示给全世界。</p>
@@ -234,6 +287,21 @@ export default function SharePage() {
                                     </button>
                                 ))}
                             </div>
+                        </div>
+
+                        {/* 项目封面图片 */}
+                        <div className="space-y-2">
+                            <Label>项目封面图片（可选）</Label>
+                            <p className="text-sm text-muted-foreground mb-2">
+                                未上传时将使用&ldquo;{formData.category}&rdquo;类别的默认主题图
+                            </p>
+                            <ImageUpload
+                                value={formData.coverImage}
+                                onChange={handleCoverImageChange}
+                                bucket="project-images"
+                                pathPrefix="covers"
+                                placeholder="点击上传项目封面图片"
+                            />
                         </div>
 
                         {/* 难度等级 */}
@@ -307,16 +375,74 @@ export default function SharePage() {
                         </div>
 
                         {/* 制作步骤 */}
-                        <div className="space-y-2">
-                            <Label htmlFor="description">制作步骤 *</Label>
-                            <Textarea
-                                id="description"
-                                value={formData.description}
-                                onChange={(e) => handleInputChange("description", e.target.value)}
-                                className="min-h-[200px]"
-                                placeholder="详细描述制作过程，每行一个步骤..."
-                                required
-                            />
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label>制作步骤 *</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addStep}
+                                    className="gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    添加步骤
+                                </Button>
+                            </div>
+
+                            {formData.steps.map((step, index) => (
+                                <Card key={index} className="border-2">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-base">步骤 {index + 1}</CardTitle>
+                                            {formData.steps.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => removeStep(index)}
+                                                    className="text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`step-title-${index}`}>步骤标题</Label>
+                                            <Input
+                                                id={`step-title-${index}`}
+                                                value={step.title}
+                                                onChange={(e) => handleStepChange(index, "title", e.target.value)}
+                                                placeholder={`例如：准备材料`}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`step-desc-${index}`}>步骤说明 *</Label>
+                                            <Textarea
+                                                id={`step-desc-${index}`}
+                                                value={step.description}
+                                                onChange={(e) => handleStepChange(index, "description", e.target.value)}
+                                                placeholder="详细描述这一步需要做什么..."
+                                                rows={3}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>步骤图片（可选）</Label>
+                                            <ImageUpload
+                                                value={step.image_url}
+                                                onChange={(url) => handleStepChange(index, "image_url", url)}
+                                                bucket="project-images"
+                                                pathPrefix="steps"
+                                                aspectRatio="aspect-video"
+                                                placeholder="上传步骤示意图"
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
